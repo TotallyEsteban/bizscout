@@ -1,0 +1,103 @@
+# docs/assets Directory Structure
+
+This directory contains all visual assets for the BizScout project documentation and branding.
+
+## Directory Organization
+
+```
+docs/
+└── assets/
+    ├── logo/              # Logo files in various formats
+    │   ├── svg/           # Vector logo files
+    │   ├── png/           # Raster logo files
+    │   └── favicon/       # Browser and app icons
+    ├── screenshots/       # Application screenshots
+    │   ├── dashboard/     # Dashboard views
+    │   ├── businesses/    # Business listing views
+    │   ├── maps/          # Map visualization views 
+    │   └── jobs/          # Scraping jobs views
+    ├── diagrams/          # Architecture and flow diagrams
+    │   ├── architecture/  # System architecture diagrams
+    │   ├── database/      # Database schema diagrams
+    │   └── flow/          # User flow and process diagrams
+    ├── social/            # Social media assets
+    └── mockups/           # Design mockups and wireframes
+```
+
+## Asset List
+
+### Logo Files
+
+- **logo/svg/bizscout-logo.svg**: Full color vector logo
+- **logo/svg/bizscout-logo-white.svg**: White (reversed) vector logo
+- **logo/svg/bizscout-mark.svg**: Logo mark only (no text)
+- **logo/png/bizscout-logo-full.png**: Full logo with text (1200×300)
+- **logo/png/bizscout-logo-square.png**: Square logo (500×500)
+- **logo/png/bizscout-mark.png**: Icon only (256×256)
+
+### Favicon Files
+
+- **logo/favicon/favicon.ico**: Multi-size favicon (16×16, 32×32, 48×48)
+- **logo/favicon/favicon-16x16.png**: Small favicon (16×16)
+- **logo/favicon/favicon-32x32.png**: Medium favicon (32×32)
+- **logo/favicon/apple-touch-icon.png**: iOS home screen icon (180×180)
+- **logo/favicon/android-chrome-192x192.png**: Android icon (192×192)
+- **logo/favicon/android-chrome-512x512.png**: Large Android icon (512×512)
+- **logo/favicon/site.webmanifest**: Web app manifest file
+- **logo/favicon/safari-pinned-tab.svg**: Safari pinned tab icon
+
+### Screenshots
+
+- **screenshots/dashboard/dashboard-overview.png**: Main dashboard view
+- **screenshots/dashboard/dashboard-analytics.png**: Analytics dashboard view
+- **screenshots/businesses/business-list.png**: Business listing page
+- **screenshots/businesses/business-detail.png**: Business detail page
+- **screenshots/maps/map-view.png**: Interactive map view
+- **screenshots/maps/heatmap-view.png**: Business density heatmap
+- **screenshots/jobs/scraping-job-list.png**: Job list view
+- **screenshots/jobs/scraping-job-detail.png**: Job details and progress view
+- **screenshots/jobs/new-job-form.png**: New job creation form
+
+### Diagrams
+
+- **diagrams/architecture/system-overview.png**: High-level system architecture
+- **diagrams/architecture/component-diagram.png**: Component interactions
+- **diagrams/database/db-schema.png**: Database schema diagram
+- **diagrams/flow/user-flow.png**: User journey diagram
+- **diagrams/flow/data-flow.png**: Data processing flow
+- **diagrams/flow/scraping-process.png**: Scraping job workflow
+
+### Social Media Assets
+
+- **social/github-banner.png**: GitHub repository banner (1280×640)
+- **social/og-image.png**: Open Graph preview image (1200×630)
+- **social/twitter-card.png**: Twitter card image (1200×600)
+- **social/linkedin-banner.png**: LinkedIn profile banner (1584×396)
+
+### Mockups and Wireframes
+
+- **mockups/landing-page.png**: Landing page design
+- **mockups/dashboard.png**: Dashboard wireframe
+- **mockups/mobile-views.png**: Mobile responsive designs
+
+## Usage Guidelines
+
+1. **Logo Usage**:
+   - Use SVG formats whenever possible for crisp rendering
+   - Maintain proper spacing around logo (padding equal to 25% of logo height)
+   - Don't alter colors or proportions of the logo
+
+2. **Screenshots**:
+   - Keep screenshot aspect ratios consistent (16:9 recommended)
+   - Use 1280×720 or 1920×1080 resolution when possible
+   - Avoid showing sensitive information or test data
+
+3. **Diagrams**:
+   - Use consistent styling across all diagrams
+   - Export in PNG format with transparent background
+   - Include a legend when necessary
+
+4. **Directory Maintenance**:
+   - Keep filenames descriptive but concise
+   - Use hyphen-case for all filenames (e.g., `business-detail.png`)
+   - Update screenshots whenever significant UI changes occur
