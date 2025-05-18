@@ -1,0 +1,411 @@
+-- Insert initial data sources
+INSERT INTO data_sources (name) VALUES 
+    ('yelp'),
+    ('google_places'),
+    ('yellow_pages'),
+    ('tripadvisor')
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert root categories
+INSERT INTO categories (name) VALUES 
+    ('Restaurants'),
+    ('Bars & Breweries'),
+    ('Fitness & Wellness'),
+    ('Events & Venues'),
+    ('Retail & Shopping'),
+    ('Kids & Family'),
+    ('Outdoors & Recreation'),
+    ('Services')
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert subcategories for Restaurants
+WITH restaurant_id AS (SELECT id FROM categories WHERE name = 'Restaurants')
+INSERT INTO categories (name, parent_id) VALUES 
+    ('American', (SELECT id FROM restaurant_id)),
+    ('Italian', (SELECT id FROM restaurant_id)),
+    ('Mexican', (SELECT id FROM restaurant_id)),
+    ('Chinese', (SELECT id FROM restaurant_id)),
+    ('Japanese', (SELECT id FROM restaurant_id)),
+    ('Indian', (SELECT id FROM restaurant_id)),
+    ('Thai', (SELECT id FROM restaurant_id)),
+    ('Mediterranean', (SELECT id FROM restaurant_id)),
+    ('Steakhouse', (SELECT id FROM restaurant_id)),
+    ('Seafood', (SELECT id FROM restaurant_id)),
+    ('Pizza', (SELECT id FROM restaurant_id)),
+    ('Fast Food', (SELECT id FROM restaurant_id)),
+    ('Breakfast & Brunch', (SELECT id FROM restaurant_id)),
+    ('Coffee & Tea', (SELECT id FROM restaurant_id)),
+    ('Dessert', (SELECT id FROM restaurant_id)),
+    ('Vegan & Vegetarian', (SELECT id FROM restaurant_id))
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert subcategories for Bars & Breweries
+WITH bars_id AS (SELECT id FROM categories WHERE name = 'Bars & Breweries')
+INSERT INTO categories (name, parent_id) VALUES 
+    ('Breweries', (SELECT id FROM bars_id)),
+    ('Wine Bars', (SELECT id FROM bars_id)),
+    ('Sports Bars', (SELECT id FROM bars_id)),
+    ('Cocktail Bars', (SELECT id FROM bars_id)),
+    ('Pubs', (SELECT id FROM bars_id)),
+    ('Nightclubs', (SELECT id FROM bars_id)),
+    ('Distilleries', (SELECT id FROM bars_id))
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert subcategories for Fitness & Wellness
+WITH fitness_id AS (SELECT id FROM categories WHERE name = 'Fitness & Wellness')
+INSERT INTO categories (name, parent_id) VALUES 
+    ('Gyms', (SELECT id FROM fitness_id)),
+    ('Yoga Studios', (SELECT id FROM fitness_id)),
+    ('Pilates', (SELECT id FROM fitness_id)),
+    ('CrossFit', (SELECT id FROM fitness_id)),
+    ('Martial Arts', (SELECT id FROM fitness_id)),
+    ('Spas', (SELECT id FROM fitness_id)),
+    ('Massage', (SELECT id FROM fitness_id)),
+    ('Hair Salons', (SELECT id FROM fitness_id)),
+    ('Nail Salons', (SELECT id FROM fitness_id)),
+    ('Barbershops', (SELECT id FROM fitness_id))
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert subcategories for Events & Venues
+WITH events_id AS (SELECT id FROM categories WHERE name = 'Events & Venues')
+INSERT INTO categories (name, parent_id) VALUES 
+    ('Event Spaces', (SELECT id FROM events_id)),
+    ('Concert Venues', (SELECT id FROM events_id)),
+    ('Theaters', (SELECT id FROM events_id)),
+    ('Art Galleries', (SELECT id FROM events_id)),
+    ('Museums', (SELECT id FROM events_id)),
+    ('Wedding Venues', (SELECT id FROM events_id)),
+    ('Conference Centers', (SELECT id FROM events_id))
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert subcategories for Retail & Shopping
+WITH retail_id AS (SELECT id FROM categories WHERE name = 'Retail & Shopping')
+INSERT INTO categories (name, parent_id) VALUES 
+    ('Clothing', (SELECT id FROM retail_id)),
+    ('Electronics', (SELECT id FROM retail_id)),
+    ('Home & Garden', (SELECT id FROM retail_id)),
+    ('Jewelry', (SELECT id FROM retail_id)),
+    ('Books', (SELECT id FROM retail_id)),
+    ('Sporting Goods', (SELECT id FROM retail_id)),
+    ('Toys & Games', (SELECT id FROM retail_id)),
+    ('Gift Shops', (SELECT id FROM retail_id)),
+    ('Shopping Centers', (SELECT id FROM retail_id))
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert subcategories for Kids & Family
+WITH kids_id AS (SELECT id FROM categories WHERE name = 'Kids & Family')
+INSERT INTO categories (name, parent_id) VALUES 
+    ('Family Entertainment', (SELECT id FROM kids_id)),
+    ('Amusement Parks', (SELECT id FROM kids_id)),
+    ('Arcades', (SELECT id FROM kids_id)),
+    ('Playgrounds', (SELECT id FROM kids_id)),
+    ('Childcare', (SELECT id FROM kids_id)),
+    ('Kids Activities', (SELECT id FROM kids_id)),
+    ('Tutoring & Learning Centers', (SELECT id FROM kids_id))
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert subcategories for Outdoors & Recreation
+WITH outdoors_id AS (SELECT id FROM categories WHERE name = 'Outdoors & Recreation')
+INSERT INTO categories (name, parent_id) VALUES 
+    ('Parks', (SELECT id FROM outdoors_id)),
+    ('Hiking', (SELECT id FROM outdoors_id)),
+    ('Golf', (SELECT id FROM outdoors_id)),
+    ('Beaches', (SELECT id FROM outdoors_id)),
+    ('Camping', (SELECT id FROM outdoors_id)),
+    ('Sports Fields', (SELECT id FROM outdoors_id)),
+    ('Bike Trails', (SELECT id FROM outdoors_id)),
+    ('Lakes', (SELECT id FROM outdoors_id)),
+    ('Botanical Gardens', (SELECT id FROM outdoors_id))
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert subcategories for Services
+WITH services_id AS (SELECT id FROM categories WHERE name = 'Services')
+INSERT INTO categories (name, parent_id) VALUES 
+    ('Plumbing', (SELECT id FROM services_id)),
+    ('Electrical', (SELECT id FROM services_id)),
+    ('HVAC', (SELECT id FROM services_id)),
+    ('Cleaning', (SELECT id FROM services_id)),
+    ('Landscaping', (SELECT id FROM services_id)),
+    ('Auto Repair', (SELECT id FROM services_id)),
+    ('Legal Services', (SELECT id FROM services_id)),
+    ('Financial Services', (SELECT id FROM services_id)),
+    ('Real Estate', (SELECT id FROM services_id)),
+    ('Insurance', (SELECT id FROM services_id)),
+    ('Medical Services', (SELECT id FROM services_id)),
+    ('Dental Services', (SELECT id FROM services_id)),
+    ('Pet Services', (SELECT id FROM services_id))
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert sample Orlando businesses
+INSERT INTO businesses (
+    id, name, description, address, city, state, zip_code, phone, website, 
+    latitude, longitude, is_verified
+) VALUES 
+    (
+        'e33d2a5b-0d5e-4f70-a3ad-7e7aa3dcf42b',
+        'The Ravenous Pig',
+        'Upscale gastropub offering seasonal fare and craft beers.',
+        '565 W Fairbanks Ave',
+        'Winter Park',
+        'FL',
+        '32789',
+        '(407) 628-2333',
+        'https://theravenouspig.com',
+        28.5947,
+        -81.3564,
+        TRUE
+    ),
+    (
+        'f9a7e86c-3bdf-4943-a46f-baff92a7ad40',
+        'Black Rooster Taqueria',
+        'Trendy taqueria known for its tacos and fresh ingredients.',
+        '1323 N Mills Ave',
+        'Orlando',
+        'FL',
+        '32803',
+        '(407) 601-0994',
+        'https://blackroostertaqueria.com',
+        28.5617,
+        -81.3603,
+        TRUE
+    ),
+    (
+        'c4b7e86c-5bdf-4943-a46f-baff92a7ad40',
+        'Se7en Bites',
+        'Southern comfort food with a modern twist, popular brunch spot.',
+        '617 N Primrose Dr',
+        'Orlando',
+        'FL',
+        '32803',
+        '(407) 203-0727',
+        'https://se7enbites.com',
+        28.5533,
+        -81.3526,
+        TRUE
+    ),
+    (
+        'd9a7e86c-3bdf-4943-a46f-ceff92a7ad40',
+        'Hourglass Brewing',
+        'Award-winning brewery offering a variety of craft beers in the Curry Ford West district.',
+        '480 S Ronald Reagan Blvd',
+        'Longwood',
+        'FL',
+        '32750',
+        '(407) 262-0056',
+        'https://hourglassbrewing.com',
+        28.6980,
+        -81.3430,
+        FALSE
+    ),
+    (
+        'a4b7e86c-5bdf-4123-a46f-baff92a7ad40',
+        'Orlando Brewing',
+        'Organic brewery offering tours and tastings of craft beers.',
+        '1301 Atlanta Ave',
+        'Orlando',
+        'FL',
+        '32806',
+        '(407) 872-1117',
+        'https://orlandobrewing.com',
+        28.5247,
+        -81.3864,
+        FALSE
+    );
+
+-- Link businesses to categories
+WITH restaurant_id AS (SELECT id FROM categories WHERE name = 'Restaurants'),
+     gastropub_id AS (SELECT id FROM categories WHERE name = 'American'),
+     mexican_id AS (SELECT id FROM categories WHERE name = 'Mexican'),
+     brunch_id AS (SELECT id FROM categories WHERE name = 'Breakfast & Brunch'),
+     brewery_id AS (SELECT id FROM categories WHERE name = 'Breweries'),
+     bars_id AS (SELECT id FROM categories WHERE name = 'Bars & Breweries')
+INSERT INTO business_categories (business_id, category_id) VALUES 
+    ('e33d2a5b-0d5e-4f70-a3ad-7e7aa3dcf42b', (SELECT id FROM restaurant_id)),
+    ('e33d2a5b-0d5e-4f70-a3ad-7e7aa3dcf42b', (SELECT id FROM gastropub_id)),
+    ('f9a7e86c-3bdf-4943-a46f-baff92a7ad40', (SELECT id FROM restaurant_id)),
+    ('f9a7e86c-3bdf-4943-a46f-baff92a7ad40', (SELECT id FROM mexican_id)),
+    ('c4b7e86c-5bdf-4943-a46f-baff92a7ad40', (SELECT id FROM restaurant_id)),
+    ('c4b7e86c-5bdf-4943-a46f-baff92a7ad40', (SELECT id FROM brunch_id)),
+    ('d9a7e86c-3bdf-4943-a46f-ceff92a7ad40', (SELECT id FROM bars_id)),
+    ('d9a7e86c-3bdf-4943-a46f-ceff92a7ad40', (SELECT id FROM brewery_id)),
+    ('a4b7e86c-5bdf-4123-a46f-baff92a7ad40', (SELECT id FROM bars_id)),
+    ('a4b7e86c-5bdf-4123-a46f-baff92a7ad40', (SELECT id FROM brewery_id));
+
+-- Link businesses to sources
+WITH yelp_id AS (SELECT id FROM data_sources WHERE name = 'yelp'),
+     google_id AS (SELECT id FROM data_sources WHERE name = 'google_places'),
+     yellow_id AS (SELECT id FROM data_sources WHERE name = 'yellow_pages')
+INSERT INTO business_sources (business_id, source_id, external_id) VALUES 
+    ('e33d2a5b-0d5e-4f70-a3ad-7e7aa3dcf42b', (SELECT id FROM yelp_id), 'ravenous-pig-winter-park'),
+    ('e33d2a5b-0d5e-4f70-a3ad-7e7aa3dcf42b', (SELECT id FROM google_id), 'ChIJRZZp8FZg54gRCvnITxw3-mI'),
+    ('f9a7e86c-3bdf-4943-a46f-baff92a7ad40', (SELECT id FROM yelp_id), 'black-rooster-taqueria-orlando'),
+    ('f9a7e86c-3bdf-4943-a46f-baff92a7ad40', (SELECT id FROM google_id), 'ChIJm2wnEGR754gR-qcFbfKPnDg'),
+    ('c4b7e86c-5bdf-4943-a46f-baff92a7ad40', (SELECT id FROM yelp_id), 'se7en-bites-orlando'),
+    ('c4b7e86c-5bdf-4943-a46f-baff92a7ad40', (SELECT id FROM google_id), 'ChIJjd2lXnB754gRxz81g-UNrOI'),
+    ('d9a7e86c-3bdf-4943-a46f-ceff92a7ad40', (SELECT id FROM yelp_id), 'hourglass-brewing-longwood'),
+    ('a4b7e86c-5bdf-4123-a46f-baff92a7ad40', (SELECT id FROM yelp_id), 'orlando-brewing-orlando'),
+    ('a4b7e86c-5bdf-4123-a46f-baff92a7ad40', (SELECT id FROM yellow_id), 'orlando-brewing-company-inc-orlando-fl');
+
+-- Insert some hours data
+UPDATE businesses
+SET hours = '{"monday":"11:30AM–10PM","tuesday":"11:30AM–10PM","wednesday":"11:30AM–10PM","thursday":"11:30AM–10PM","friday":"11:30AM–11PM","saturday":"11:30AM–11PM","sunday":"10:30AM–9PM"}'
+WHERE id = 'e33d2a5b-0d5e-4f70-a3ad-7e7aa3dcf42b';
+
+UPDATE businesses
+SET hours = '{"monday":"11AM–9PM","tuesday":"11AM–9PM","wednesday":"11AM–9PM","thursday":"11AM–9PM","friday":"11AM–10PM","saturday":"11AM–10PM","sunday":"11AM–9PM"}'
+WHERE id = 'f9a7e86c-3bdf-4943-a46f-baff92a7ad40';
+
+UPDATE businesses
+SET hours = '{"monday":"8AM–3:30PM","tuesday":"8AM–3:30PM","wednesday":"8AM–3:30PM","thursday":"8AM–3:30PM","friday":"8AM–3:30PM","saturday":"8AM–3:30PM","sunday":"8AM–3:30PM"}'
+WHERE id = 'c4b7e86c-5bdf-4943-a46f-baff92a7ad40';
+
+UPDATE businesses
+SET hours = '{"monday":"closed","tuesday":"4PM–10PM","wednesday":"4PM–10PM","thursday":"4PM–10PM","friday":"12PM–12AM","saturday":"12PM–12AM","sunday":"12PM–8PM"}'
+WHERE id = 'd9a7e86c-3bdf-4943-a46f-ceff92a7ad40';
+
+UPDATE businesses
+SET hours = '{"monday":"3PM–10PM","tuesday":"3PM–10PM","wednesday":"3PM–10PM","thursday":"3PM–10PM","friday":"3PM–12AM","saturday":"2PM–12AM","sunday":"2PM–9PM"}'
+WHERE id = 'a4b7e86c-5bdf-4123-a46f-baff92a7ad40';
+
+-- Insert social media links
+UPDATE businesses
+SET social_links = '{"facebook":"https://facebook.com/theravenouspig","instagram":"https://instagram.com/theravenouspig","twitter":"https://twitter.com/theravenouspig"}'
+WHERE id = 'e33d2a5b-0d5e-4f70-a3ad-7e7aa3dcf42b';
+
+UPDATE businesses
+SET social_links = '{"facebook":"https://facebook.com/blackroostertaqueria","instagram":"https://instagram.com/blackroostertaqueria"}'
+WHERE id = 'f9a7e86c-3bdf-4943-a46f-baff92a7ad40';
+
+UPDATE businesses
+SET social_links = '{"facebook":"https://facebook.com/se7enbites","instagram":"https://instagram.com/se7enbites"}'
+WHERE id = 'c4b7e86c-5bdf-4943-a46f-baff92a7ad40';
+
+UPDATE businesses
+SET social_links = '{"facebook":"https://facebook.com/HourglassBrewing","instagram":"https://instagram.com/hourglassbrewing"}'
+WHERE id = 'd9a7e86c-3bdf-4943-a46f-ceff92a7ad40';
+
+UPDATE businesses
+SET social_links = '{"facebook":"https://facebook.com/OrlandoBrewing","instagram":"https://instagram.com/orlandobrewing"}'
+WHERE id = 'a4b7e86c-5bdf-4123-a46f-baff92a7ad40';
+
+-- Insert some images
+UPDATE businesses
+SET images = '["https://s3-media2.fl.yelpcdn.com/bphoto/baf7fC1JlhYB0AI_Z8Z7Kw/o.jpg", "https://s3-media1.fl.yelpcdn.com/bphoto/k8hvvqBPYjX9JhWWMjMsIw/o.jpg"]'
+WHERE id = 'e33d2a5b-0d5e-4f70-a3ad-7e7aa3dcf42b';
+
+UPDATE businesses
+SET images = '["https://s3-media3.fl.yelpcdn.com/bphoto/QV7ZLQBVHISmVgQmwaPrwA/o.jpg", "https://s3-media4.fl.yelpcdn.com/bphoto/4VtmKmLHA9-HNE_-JNPzyQ/o.jpg"]'
+WHERE id = 'f9a7e86c-3bdf-4943-a46f-baff92a7ad40';
+
+UPDATE businesses
+SET images = '["https://s3-media1.fl.yelpcdn.com/bphoto/7bKQpl5OY7m6UyOUr5X-rA/o.jpg", "https://s3-media2.fl.yelpcdn.com/bphoto/pTzFu0Bax3J0C3pQBIwcLQ/o.jpg"]'
+WHERE id = 'c4b7e86c-5bdf-4943-a46f-baff92a7ad40';
+
+-- Insert sample reviews
+INSERT INTO reviews (
+    id, business_id, source_id, rating, text, author, date, sentiment_score
+) VALUES 
+    (
+        uuid_generate_v4(),
+        'e33d2a5b-0d5e-4f70-a3ad-7e7aa3dcf42b',
+        (SELECT id FROM data_sources WHERE name = 'yelp'),
+        5.0,
+        'Absolutely amazing experience! The food was incredible, especially the charcuterie board. Will definitely be coming back.',
+        'John D.',
+        '2023-11-15',
+        0.9
+    ),
+    (
+        uuid_generate_v4(),
+        'e33d2a5b-0d5e-4f70-a3ad-7e7aa3dcf42b',
+        (SELECT id FROM data_sources WHERE name = 'google_places'),
+        4.5,
+        'Great atmosphere and excellent craft beer selection. The service was top-notch too.',
+        'Sarah M.',
+        '2023-12-22',
+        0.8
+    ),
+    (
+        uuid_generate_v4(),
+        'f9a7e86c-3bdf-4943-a46f-baff92a7ad40',
+        (SELECT id FROM data_sources WHERE name = 'yelp'),
+        4.0,
+        'Love the tacos here! Very authentic and the salsa is fresh. Can get crowded during peak hours.',
+        'Mike R.',
+        '2024-01-10',
+        0.7
+    ),
+    (
+        uuid_generate_v4(),
+        'c4b7e86c-5bdf-4943-a46f-baff92a7ad40',
+        (SELECT id FROM data_sources WHERE name = 'yelp'),
+        5.0,
+        'Best brunch in Orlando! The biscuits are incredible and the staff is so friendly.',
+        'Amanda L.',
+        '2024-02-05',
+        0.95
+    );
+
+-- Insert sample offers
+INSERT INTO offers (
+    id, business_id, title, description, start_date, end_date, is_active
+) VALUES 
+    (
+        uuid_generate_v4(),
+        'e33d2a5b-0d5e-4f70-a3ad-7e7aa3dcf42b',
+        'Happy Hour Special',
+        'Half off all draft beers and $5 appetizers from 4-6pm, Monday through Friday.',
+        '2024-01-01',
+        '2024-12-31',
+        TRUE
+    ),
+    (
+        uuid_generate_v4(),
+        'f9a7e86c-3bdf-4943-a46f-baff92a7ad40',
+        'Taco Tuesday',
+        '$2 tacos all day every Tuesday. Dine-in only.',
+        '2024-01-01',
+        '2024-12-31',
+        TRUE
+    ),
+    (
+        uuid_generate_v4(),
+        'd9a7e86c-3bdf-4943-a46f-ceff92a7ad40',
+        'Brewery Tour Special',
+        'Book a brewery tour for 4+ people and get a free tasting flight.',
+        '2024-03-01',
+        '2024-06-30',
+        TRUE
+    );
+
+-- Create a sample admin user (password: admin123)
+INSERT INTO users (
+    id, email, hashed_password, name, role, is_active
+) VALUES (
+    uuid_generate_v4(),
+    'admin@bizscout.com',
+    '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', -- hashed 'admin123'
+    'Admin User',
+    'admin',
+    TRUE
+);
+
+-- Create a sample scraping job
+INSERT INTO scraping_jobs (
+    id, city, state, zip_codes, categories, source_ids, 
+    status, started_at, completed_at, businesses_found,
+    businesses_created, businesses_updated
+) VALUES (
+    uuid_generate_v4(),
+    'Orlando',
+    'FL',
+    '["32801", "32803", "32804"]',
+    '[1, 2]',
+    '[1, 2, 3]',
+    'completed',
+    NOW() - INTERVAL '1 hour',
+    NOW() - INTERVAL '30 minutes',
+    5,
+    3,
+    2
+);
