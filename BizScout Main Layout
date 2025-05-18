@@ -1,0 +1,51 @@
+import React from 'react';
+import { Box, Container, Toolbar } from '@mui/material';
+import Head from 'next/head';
+import Header from './Header';
+import Footer from './Footer';
+
+/**
+ * Main layout component with BizScout branding
+ * 
+ * @param {Object} props
+ * @param {React.ReactNode} props.children - Page content
+ * @param {string} props.title - Page title
+ * @param {boolean} props.maxWidth - Container max width ('xs', 'sm', 'md', 'lg', 'xl', false)
+ * @returns {JSX.Element}
+ */
+const MainLayout = ({ children, title = 'BizScout', maxWidth = 'xl' }) => {
+  return (
+    <>
+      <Head>
+        <title>{`${title} | BizScout`}</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="description" content="BizScout - Intelligent Business Data Collection" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        minHeight: '100vh',
+        bgcolor: 'background.default'
+      }}>
+        <Header title={title} />
+        
+        <Box component="main" sx={{ 
+          flexGrow: 1, 
+          pt: { xs: 8, sm: 9 }, 
+          pb: 4
+        }}>
+          <Toolbar />
+          <Container maxWidth={maxWidth} sx={{ mt: 2 }}>
+            {children}
+          </Container>
+        </Box>
+        
+        <Footer />
+      </Box>
+    </>
+  );
+};
+
+export default MainLayout;
