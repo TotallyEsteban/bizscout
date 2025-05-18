@@ -148,3 +148,10 @@ coverage/
 *.flv
 *.mov
 *.wmv
+ 
+# SSL/TLS Certificates
+*.pem
+*.key
+*.crt
+*.csr
+*.srl
