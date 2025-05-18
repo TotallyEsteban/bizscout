@@ -1,0 +1,173 @@
+import React from 'react';
+import { 
+  Box, 
+  Typography, 
+  Container, 
+  Link, 
+  Grid, 
+  Divider, 
+  IconButton,
+  useTheme
+} from '@mui/material';
+import Logo from './Logo';
+
+// Import the necessary icons
+import TwitterIcon from '@mui/icons-material/Twitter';
+import GitHubIcon from '@mui/icons-material/GitHub';
+import LinkedInIcon from '@mui/icons-material/LinkedIn';
+
+const Footer = () => {
+  const theme = useTheme();
+  const currentYear = new Date().getFullYear();
+
+  const footerLinks = [
+    {
+      title: 'Product',
+      links: [
+        { name: 'Features', href: '/features' },
+        { name: 'Pricing', href: '/pricing' },
+        { name: 'Documentation', href: '/docs' },
+        { name: 'API Reference', href: '/api' }
+      ]
+    },
+    {
+      title: 'Company',
+      links: [
+        { name: 'About', href: '/about' },
+        { name: 'Blog', href: '/blog' },
+        { name: 'Careers', href: '/careers' },
+        { name: 'Contact', href: '/contact' }
+      ]
+    },
+    {
+      title: 'Legal',
+      links: [
+        { name: 'Privacy Policy', href: '/privacy' },
+        { name: 'Terms of Service', href: '/terms' },
+        { name: 'Cookie Policy', href: '/cookies' }
+      ]
+    }
+  ];
+
+  return (
+    <Box
+      component="footer"
+      sx={{
+        py: 6,
+        px: 2,
+        mt: 'auto',
+        backgroundColor: theme.palette.background.paper,
+        borderTop: `1px solid ${theme.palette.divider}`
+      }}
+    >
+      <Container maxWidth="lg">
+        <Grid container spacing={4} justifyContent="space-between">
+          {/* Logo and company description */}
+          <Grid item xs={12} md={4}>
+            <Box sx={{ display: 'flex', mb: 2 }}>
+              <Logo size="small" variant="default" />
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, maxWidth: 300 }}>
+              Intelligent business data collection and analysis platform for discovering local businesses anywhere.
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <IconButton 
+                size="small" 
+                sx={{ 
+                  color: 'text.secondary',
+                  '&:hover': { 
+                    color: '#1DA1F2',
+                    backgroundColor: 'rgba(29, 161, 242, 0.08)'
+                  }
+                }}
+              >
+                <TwitterIcon />
+              </IconButton>
+              <IconButton 
+                size="small" 
+                sx={{ 
+                  color: 'text.secondary',
+                  '&:hover': { 
+                    color: '#24292e',
+                    backgroundColor: 'rgba(36, 41, 46, 0.08)'
+                  }
+                }}
+              >
+                <GitHubIcon />
+              </IconButton>
+              <IconButton 
+                size="small" 
+                sx={{ 
+                  color: 'text.secondary',
+                  '&:hover': { 
+                    color: '#0077B5',
+                    backgroundColor: 'rgba(0, 119, 181, 0.08)'
+                  }
+                }}
+              >
+                <LinkedInIcon />
+              </IconButton>
+            </Box>
+          </Grid>
+
+          {/* Footer links */}
+          {footerLinks.map((section) => (
+            <Grid item xs={6} sm={4} md={2} key={section.title}>
+              <Typography
+                variant="subtitle2"
+                color="text.primary"
+                gutterBottom
+                sx={{ fontWeight: 'bold' }}
+              >
+                {section.title}
+              </Typography>
+              <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none' }}>
+                {section.links.map((link) => (
+                  <Box component="li" key={link.name} sx={{ py: 0.5 }}>
+                    <Link
+                      href={link.href}
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ 
+                        textDecoration: 'none',
+                        '&:hover': { 
+                          color: 'primary.main',
+                          textDecoration: 'underline'
+                        }
+                      }}
+                    >
+                      {link.name}
+                    </Link>
+                  </Box>
+                ))}
+              </Box>
+            </Grid>
+          ))}
+        </Grid>
+
+        <Divider sx={{ my: 3 }} />
+        
+        {/* Copyright section */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+          <Typography variant="body2" color="text.secondary">
+            © {currentYear} BizScout. All rights reserved.
+          </Typography>
+          
+          <Box
+            component="form"
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              Made with ❤️ by Your Team
+            </Typography>
+          </Box>
+        </Box>
+      </Container>
+    </Box>
+  );
+};
+
+export default Footer;
