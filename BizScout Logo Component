@@ -1,0 +1,124 @@
+import React from 'react';
+
+/**
+ * BizScout Logo Component
+ * 
+ * @param {Object} props
+ * @param {string} props.size - Size of the logo ('small', 'medium', 'large')
+ * @param {boolean} props.variant - Color variant ('default' or 'white')
+ * @returns {JSX.Element}
+ */
+const Logo = ({ size = 'medium', variant = 'default' }) => {
+  // Define sizes
+  const sizes = {
+    small: {
+      containerSize: 32,
+      searchSize: 20,
+      buildingSize: 8,
+      buildingOffset: 1,
+      textSize: 'text-lg',
+    },
+    medium: {
+      containerSize: 40,
+      searchSize: 24,
+      buildingSize: 10,
+      buildingOffset: 1,
+      textSize: 'text-xl',
+    },
+    large: {
+      containerSize: 60,
+      searchSize: 40,
+      buildingSize: 16,
+      buildingOffset: 2,
+      textSize: 'text-3xl',
+    },
+  };
+
+  // Get size configuration
+  const sizeConfig = sizes[size] || sizes.medium;
+
+  // Define colors based on variant
+  const colors = {
+    default: {
+      logoBackground: 'bg-white',
+      searchStroke: '#1d4ed8', // Primary blue
+      buildingBackground: 'bg-orange-500',
+      buildingStroke: 'white',
+      textBiz: 'text-gray-800',
+      textScout: 'text-orange-500',
+    },
+    white: {
+      logoBackground: 'bg-blue-700 bg-opacity-20',
+      searchStroke: 'white',
+      buildingBackground: 'bg-orange-500',
+      buildingStroke: 'white',
+      textBiz: 'text-white',
+      textScout: 'text-orange-300',
+    },
+  };
+
+  // Get color configuration
+  const colorConfig = colors[variant] || colors.default;
+
+  return (
+    <div className="flex items-center">
+      {/* Logo Icon */}
+      <div 
+        className={`relative ${colorConfig.logoBackground} rounded-full shadow-md mr-3 flex items-center justify-center`}
+        style={{ 
+          width: sizeConfig.containerSize, 
+          height: sizeConfig.containerSize 
+        }}
+      >
+        {/* Magnifying Glass */}
+        <svg 
+          width={sizeConfig.searchSize} 
+          height={sizeConfig.searchSize} 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          stroke={colorConfig.searchStroke} 
+          strokeWidth="2" 
+          strokeLinecap="round" 
+          strokeLinejoin="round"
+        >
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        
+        {/* Building Icon */}
+        <div 
+          className={`absolute ${colorConfig.buildingBackground} rounded-full flex items-center justify-center`}
+          style={{ 
+            width: sizeConfig.buildingSize, 
+            height: sizeConfig.buildingSize,
+            right: -sizeConfig.buildingOffset,
+            bottom: -sizeConfig.buildingOffset
+          }}
+        >
+          <svg 
+            width={sizeConfig.buildingSize * 0.6} 
+            height={sizeConfig.buildingSize * 0.6} 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke={colorConfig.buildingStroke} 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          >
+            <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+          </svg>
+        </div>
+      </div>
+      
+      {/* Logo Text */}
+      <div>
+        <h1 className={`font-bold ${sizeConfig.textSize}`}>
+          <span className={colorConfig.textBiz}>Biz</span>
+          <span className={colorConfig.textScout}>Scout</span>
+        </h1>
+      </div>
+    </div>
+  );
+};
+
+export default Logo;
