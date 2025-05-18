@@ -1,0 +1,99 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Title -->
+  <text x="400" y="40" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="#1F2937">BizScout Architecture Diagram</text>
+  
+  <!-- Frontend Section -->
+  <g transform="translate(50, 100)">
+    <rect x="0" y="0" width="200" height="100" rx="10" fill="#3B82F6" fill-opacity="0.2" stroke="#1D4ED8" stroke-width="2" />
+    <text x="100" y="30" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#1D4ED8">Frontend</text>
+    
+    <rect x="20" y="45" width="75" height="40" rx="5" fill="white" stroke="#1D4ED8" stroke-width="1" />
+    <text x="57.5" y="70" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#1F2937">React UI</text>
+    
+    <rect x="105" y="45" width="75" height="40" rx="5" fill="white" stroke="#1D4ED8" stroke-width="1" />
+    <text x="142.5" y="70" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#1F2937">Next.js</text>
+  </g>
+  
+  <!-- Backend Section -->
+  <g transform="translate(300, 100)">
+    <rect x="0" y="0" width="200" height="160" rx="10" fill="#F97316" fill-opacity="0.2" stroke="#F97316" stroke-width="2" />
+    <text x="100" y="30" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#F97316">Backend</text>
+    
+    <rect x="20" y="45" width="75" height="40" rx="5" fill="white" stroke="#F97316" stroke-width="1" />
+    <text x="57.5" y="70" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#1F2937">FastAPI</text>
+    
+    <rect x="105" y="45" width="75" height="40" rx="5" fill="white" stroke="#F97316" stroke-width="1" />
+    <text x="142.5" y="70" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#1F2937">SQLAlchemy</text>
+    
+    <rect x="20" y="100" width="75" height="40" rx="5" fill="white" stroke="#F97316" stroke-width="1" />
+    <text x="57.5" y="125" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#1F2937">Celery</text>
+    
+    <rect x="105" y="100" width="75" height="40" rx="5" fill="white" stroke="#F97316" stroke-width="1" />
+    <text x="142.5" y="125" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#1F2937">Redis</text>
+  </g>
+  
+  <!-- External Sources Section -->
+  <g transform="translate(550, 100)">
+    <rect x="0" y="0" width="200" height="160" rx="10" fill="#3B82F6" fill-opacity="0.2" stroke="#1D4ED8" stroke-width="2" />
+    <text x="100" y="30" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#1D4ED8">External Sources</text>
+    
+    <rect x="20" y="45" width="160" height="30" rx="5" fill="white" stroke="#1D4ED8" stroke-width="1" />
+    <text x="100" y="65" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#1F2937">Yelp Fusion API</text>
+    
+    <rect x="20" y="85" width="160" height="30" rx="5" fill="white" stroke="#1D4ED8" stroke-width="1" />
+    <text x="100" y="105" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#1F2937">Google Places API</text>
+    
+    <rect x="20" y="125" width="160" height="30" rx="5" fill="white" stroke="#1D4ED8" stroke-width="1" />
+    <text x="100" y="145" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#1F2937">Yellow Pages (Web Scraping)</text>
+  </g>
+  
+  <!-- Database Section -->
+  <g transform="translate(300, 300)">
+    <rect x="0" y="0" width="200" height="120" rx="10" fill="#F97316" fill-opacity="0.2" stroke="#F97316" stroke-width="2" />
+    <text x="100" y="30" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#F97316">Database</text>
+    
+    <rect x="20" y="45" width="75" height="40" rx="5" fill="white" stroke="#F97316" stroke-width="1" />
+    <text x="57.5" y="70" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#1F2937">PostgreSQL</text>
+    
+    <rect x="105" y="45" width="75" height="40" rx="5" fill="white" stroke="#F97316" stroke-width="1" />
+    <text x="142.5" y="70" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#1F2937">PostGIS</text>
+  </g>
+  
+  <!-- AI Service Section -->
+  <g transform="translate(300, 460)">
+    <rect x="0" y="0" width="200" height="80" rx="10" fill="#3B82F6" fill-opacity="0.2" stroke="#1D4ED8" stroke-width="2" />
+    <text x="100" y="30" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#1D4ED8">AI Services</text>
+    
+    <rect x="20" y="45" width="160" height="30" rx="5" fill="white" stroke="#1D4ED8" stroke-width="1" />
+    <text x="100" y="65" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#1F2937">OpenAI API (GPT Models)</text>
+  </g>
+  
+  <!-- Connection Lines -->
+  <!-- Frontend to Backend -->
+  <line x1="250" y1="150" x2="300" y2="150" stroke="#1F2937" stroke-width="2" stroke-dasharray="5,5" />
+  <polygon points="300,150 290,145 290,155" fill="#1F2937" />
+  
+  <!-- Backend to External Sources -->
+  <line x1="500" y1="150" x2="550" y2="150" stroke="#1F2937" stroke-width="2" stroke-dasharray="5,5" />
+  <polygon points="550,150 540,145 540,155" fill="#1F2937" />
+  
+  <!-- Backend to Database -->
+  <line x1="400" y1="260" x2="400" y2="300" stroke="#1F2937" stroke-width="2" stroke-dasharray="5,5" />
+  <polygon points="400,300 395,290 405,290" fill="#1F2937" />
+  
+  <!-- Backend to AI Service -->
+  <line x1="400" y1="420" x2="400" y2="460" stroke="#1F2937" stroke-width="2" stroke-dasharray="5,5" />
+  <polygon points="400,460 395,450 405,450" fill="#1F2937" />
+  
+  <!-- Legend -->
+  <g transform="translate(50, 460)">
+    <rect x="0" y="0" width="200" height="100" rx="10" fill="#E5E7EB" stroke="#9CA3AF" stroke-width="1" />
+    <text x="100" y="25" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#1F2937">Legend</text>
+    
+    <rect x="15" y="40" width="15" height="15" fill="#3B82F6" fill-opacity="0.2" stroke="#1D4ED8" stroke-width="1" />
+    <text x="40" y="53" font-family="Arial, sans-serif" font-size="12" dominant-baseline="middle" fill="#1F2937">UI & External Components</text>
+    
+    <rect x="15" y="65" width="15" height="15" fill="#F97316" fill-opacity="0.2" stroke="#F97316" stroke-width="1" />
+    <text x="40" y="78" font-family="Arial, sans-serif" font-size="12" dominant-baseline="middle" fill="#1F2937">Backend Components</text>
+  </g>
+</svg>
