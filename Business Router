@@ -1,0 +1,153 @@
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+from typing import List, Optional
+import logging
+
+from app.api.deps import get_db, get_current_user
+from app.schemas.business import (
+    BusinessCreate, 
+    BusinessUpdate, 
+    BusinessResponse, 
+    BusinessSummary,
+    BusinessSearchParams
+)
+from app.services.business import BusinessService
+from app.models.user import User
+
+router = APIRouter()
+logger = logging.getLogger(__name__)
+
+@router.post("/", response_model=BusinessResponse)
+async def create_business(
+    business: BusinessCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new business entry manually"""
+    logger.info(f"Creating new business: {business.name}")
+    
+    business_service = BusinessService(db)
+    return business_service.create_business(business)
+
+@router.get("/", response_model=List[BusinessSummary])
+async def list_businesses(
+    search: Optional[str] = None,
+    category_id: Optional[int] = None,
+    city: Optional[str] = None,
+    state: Optional[str] = None,
+    zip_code: Optional[str] = None,
+    is_verified: Optional[bool] = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """List all businesses with optional filtering"""
+    search_params = BusinessSearchParams(
+        search=search,
+        category_id=category_id,
+        city=city,
+        state=state,
+        zip_code=zip_code,
+        is_verified=is_verified,
+        skip=skip,
+        limit=limit
+    )
+    
+    business_service = BusinessService(db)
+    return business_service.search_businesses(search_params)
+
+@router.get("/{business_id}", response_model=BusinessResponse)
+async def get_business(
+    business_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get a specific business by ID"""
+    business_service = BusinessService(db)
+    business = business_service.get_business_by_id(business_id)
+    
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+    
+    return business
+
+@router.put("/{business_id}", response_model=BusinessResponse)
+async def update_business(
+    business_id: str,
+    business_update: BusinessUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Update an existing business"""
+    business_service = BusinessService(db)
+    updated_business = business_service.update_business(business_id, business_update)
+    
+    if not updated_business:
+        raise HTTPException(status_code=404, detail="Business not found")
+    
+    return updated_business
+
+@router.delete("/{business_id}", response_model=dict)
+async def delete_business(
+    business_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a business"""
+    business_service = BusinessService(db)
+    success = business_service.delete_business(business_id)
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Business not found")
+    
+    return {"success": True, "message": "Business deleted successfully"}
+
+@router.post("/{business_id}/verify", response_model=BusinessResponse)
+async def verify_business(
+    business_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Mark a business as verified"""
+    business_service = BusinessService(db)
+    business = business_service.verify_business(business_id)
+    
+    if not business:
+        raise HTTPException(status_code=404, detail="Business not found")
+    
+    return business
+
+@router.get("/categories/", response_model=List[dict])
+async def list_categories(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """List all business categories"""
+    business_service = BusinessService(db)
+    return business_service.get_all_categories()
+
+@router.get("/statistics/", response_model=dict)
+async def get_business_statistics(
+    city: Optional[str] = None,
+    state: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get statistics about businesses in the database"""
+    business_service = BusinessService(db)
+    return business_service.get_statistics(city, state)
+
+@router.get("/nearby/", response_model=List[BusinessSummary])
+async def get_nearby_businesses(
+    latitude: float = Query(..., description="Latitude coordinate"),
+    longitude: float = Query(..., description="Longitude coordinate"),
+    radius: float = Query(1.0, description="Radius in kilometers"),
+    category_id: Optional[int] = None,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get businesses near a specific location"""
+    business_service = BusinessService(db)
+    return business_service.get_nearby_businesses(latitude, longitude, radius, category_id, limit)
