@@ -1,0 +1,240 @@
+import React, { useState } from 'react';
+import { 
+  AppBar, 
+  Box, 
+  Toolbar, 
+  IconButton, 
+  Typography, 
+  Menu, 
+  Container, 
+  Avatar, 
+  Button, 
+  Tooltip, 
+  MenuItem, 
+  Drawer, 
+  List, 
+  ListItem, 
+  ListItemIcon, 
+  ListItemText, 
+  Divider
+} from '@mui/material';
+import { 
+  Menu as MenuIcon, 
+  Notifications as NotificationsIcon,
+  Dashboard as DashboardIcon,
+  Search as SearchIcon,
+  Business as BusinessIcon,
+  Map as MapIcon,
+  BarChart as AnalyticsIcon,
+  Settings as SettingsIcon,
+  Logout as LogoutIcon
+} from '@mui/icons-material';
+import { useRouter } from 'next/router';
+import { useAuth } from '../contexts/AuthContext';
+import Logo from './Logo';
+
+const pages = [
+  { name: 'Dashboard', path: '/dashboard', icon: <DashboardIcon /> },
+  { name: 'Scraping Jobs', path: '/jobs', icon: <SearchIcon /> },
+  { name: 'Businesses', path: '/businesses', icon: <BusinessIcon /> },
+  { name: 'Maps', path: '/maps', icon: <MapIcon /> },
+  { name: 'Analytics', path: '/analytics', icon: <AnalyticsIcon /> },
+];
+
+const settings = ['Profile', 'Account', 'Settings', 'Logout'];
+
+const drawerWidth = 240;
+
+const Header = ({ title }) => {
+  const [anchorElUser, setAnchorElUser] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const router = useRouter();
+  const { user, logout } = useAuth();
+
+  const handleOpenUserMenu = (event) => {
+    setAnchorElUser(event.currentTarget);
+  };
+
+  const handleCloseUserMenu = () => {
+    setAnchorElUser(null);
+  };
+
+  const handleToggleDrawer = () => {
+    setDrawerOpen(!drawerOpen);
+  };
+
+  const handleDrawerNavigation = (path) => {
+    router.push(path);
+    setDrawerOpen(false);
+  };
+
+  const handleSettingsClick = (setting) => {
+    handleCloseUserMenu();
+    
+    if (setting === 'Logout') {
+      logout();
+    } else if (setting === 'Settings') {
+      router.push('/settings');
+    } else if (setting === 'Profile') {
+      router.push('/profile');
+    } else if (setting === 'Account') {
+      router.push('/account');
+    }
+  };
+
+  return (
+    <>
+      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, bgcolor: 'primary.main' }}>
+        <Container maxWidth="xl">
+          <Toolbar disableGutters>
+            {/* Mobile menu button */}
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleToggleDrawer}
+              sx={{ mr: 2, display: { sm: 'flex' } }}
+            >
+              <MenuIcon />
+            </IconButton>
+            
+            {/* Logo */}
+            <Box sx={{ display: 'flex', mr: 1 }}>
+              <Logo size="small" variant="white" />
+            </Box>
+
+            {/* Page title */}
+            <Typography
+              variant="h6"
+              noWrap
+              component="div"
+              sx={{ 
+                flexGrow: 1,
+                display: 'flex',
+                color: 'white',
+                ml: 1
+              }}
+            >
+              {title}
+            </Typography>
+
+            {/* Notifications */}
+            <IconButton
+              size="large"
+              aria-label="show new notifications"
+              color="inherit"
+              sx={{ mr: 2 }}
+            >
+              <NotificationsIcon />
+            </IconButton>
+
+            {/* User Menu */}
+            <Box sx={{ flexShrink: 0 }}>
+              <Tooltip title="Open settings">
+                <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
+                  <Avatar sx={{ bgcolor: 'accent.main' }}>
+                    {user?.name?.charAt(0) || 'U'}
+                  </Avatar>
+                </IconButton>
+              </Tooltip>
+              <Menu
+                sx={{ mt: '45px' }}
+                id="menu-appbar"
+                anchorEl={anchorElUser}
+                anchorOrigin={{
+                  vertical: 'top',
+                  horizontal: 'right',
+                }}
+                keepMounted
+                transformOrigin={{
+                  vertical: 'top',
+                  horizontal: 'right',
+                }}
+                open={Boolean(anchorElUser)}
+                onClose={handleCloseUserMenu}
+              >
+                {settings.map((setting) => (
+                  <MenuItem key={setting} onClick={() => handleSettingsClick(setting)}>
+                    <Typography textAlign="center">{setting}</Typography>
+                  </MenuItem>
+                ))}
+              </Menu>
+            </Box>
+          </Toolbar>
+        </Container>
+      </AppBar>
+
+      {/* Side Drawer */}
+      <Drawer
+        variant="temporary"
+        open={drawerOpen}
+        onClose={handleToggleDrawer}
+        sx={{
+          width: drawerWidth,
+          flexShrink: 0,
+          [`& .MuiDrawer-paper`]: { 
+            width: drawerWidth, 
+            boxSizing: 'border-box',
+            bgcolor: 'background.paper',
+          },
+        }}
+      >
+        <Toolbar />
+        <Box sx={{ overflow: 'auto', height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <List>
+            {pages.map((page) => (
+              <ListItem 
+                button 
+                key={page.name} 
+                onClick={() => handleDrawerNavigation(page.path)}
+                sx={{
+                  bgcolor: router.pathname === page.path ? 'rgba(29, 78, 216, 0.08)' : 'transparent',
+                  borderLeft: router.pathname === page.path ? '4px solid #1d4ed8' : '4px solid transparent',
+                  '&:hover': {
+                    bgcolor: 'rgba(29, 78, 216, 0.04)',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ 
+                  color: router.pathname === page.path ? 'primary.main' : 'text.secondary', 
+                  minWidth: 40 
+                }}>
+                  {page.icon}
+                </ListItemIcon>
+                <ListItemText 
+                  primary={page.name}
+                  primaryTypographyProps={{
+                    fontWeight: router.pathname === page.path ? 600 : 400,
+                    color: router.pathname === page.path ? 'primary.main' : 'text.primary',
+                  }}
+                />
+              </ListItem>
+            ))}
+          </List>
+          
+          <Divider />
+          
+          {/* Settings and Logout at bottom */}
+          <Box sx={{ mt: 'auto' }}>
+            <List>
+              <ListItem button onClick={() => handleDrawerNavigation('/settings')}>
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <SettingsIcon />
+                </ListItemIcon>
+                <ListItemText primary="Settings" />
+              </ListItem>
+              <ListItem button onClick={logout}>
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <LogoutIcon />
+                </ListItemIcon>
+                <ListItemText primary="Logout" />
+              </ListItem>
+            </List>
+          </Box>
+        </Box>
+      </Drawer>
+    </>
+  );
+};
+
+export default Header;
