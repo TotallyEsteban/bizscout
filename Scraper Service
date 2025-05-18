@@ -1,0 +1,386 @@
+import logging
+from typing import List, Dict, Any, Optional, Set, Tuple
+from datetime import datetime
+import asyncio
+import uuid
+from sqlalchemy.orm import Session
+from sqlalchemy import and_, or_, func, desc
+
+from app.models.business import Business, Category, DataSource, business_categories, business_sources
+from app.models.scraping_job import ScrapingJob
+from app.scrapers.base import ScraperFactory
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+class ScraperService:
+    """Service class for managing scraping jobs and business data collection"""
+    
+    def __init__(self, db: Session):
+        self.db = db
+        self.proxy_pool = settings.PROXY_LIST if settings.USE_PROXY else None
+        self._scrapers = {}
+        self._active_jobs = set()
+    
+    def create_job(self, job_data: dict, user_id: str = None) -> ScrapingJob:
+        """Create a new scraping job"""
+        job_id = str(uuid.uuid4())
+        
+        # Create job record
+        job = ScrapingJob(
+            id=job_id,
+            city=job_data.city,
+            state=job_data.state,
+            zip_codes=job_data.zip_codes,
+            categories=job_data.categories,
+            source_ids=job_data.source_ids,
+            status="pending"
+        )
+        
+        self.db.add(job)
+        self.db.commit()
+        self.db.refresh(job)
+        
+        return job
+    
+    def get_job(self, job_id: str) -> Optional[ScrapingJob]:
+        """Get a specific job by ID"""
+        return self.db.query(ScrapingJob).filter(ScrapingJob.id == job_id).first()
+    
+    def get_jobs(self, skip: int = 0, limit: int = 100, status: Optional[str] = None) -> List[ScrapingJob]:
+        """Get all jobs with optional filtering"""
+        query = self.db.query(ScrapingJob)
+        
+        if status:
+            query = query.filter(ScrapingJob.status == status)
+        
+        return query.order_by(desc(ScrapingJob.created_at)).offset(skip).limit(limit).all()
+    
+    def update_job_status(self, job_id: str, status: str, **kwargs) -> Optional[ScrapingJob]:
+        """Update the status of a job"""
+        job = self.get_job(job_id)
+        
+        if not job:
+            return None
+        
+        job.status = status
+        
+        # Update additional fields if provided
+        for key, value in kwargs.items():
+            if hasattr(job, key):
+                setattr(job, key, value)
+        
+        self.db.commit()
+        self.db.refresh(job)
+        
+        return job
+    
+    def cancel_job(self, job_id: str) -> Optional[ScrapingJob]:
+        """Cancel a running job"""
+        job = self.get_job(job_id)
+        
+        if not job or job.status not in ["pending", "running"]:
+            return None
+        
+        # Mark as cancelled
+        job.status = "cancelled"
+        self.db.commit()
+        self.db.refresh(job)
+        
+        # Remove from active jobs
+        if job_id in self._active_jobs:
+            self._active_jobs.remove(job_id)
+        
+        return job
+    
+    def retry_job(self, job_id: str) -> Optional[ScrapingJob]:
+        """Retry a failed job"""
+        job = self.get_job(job_id)
+        
+        if not job or job.status not in ["failed", "cancelled"]:
+            return None
+        
+        # Reset job status and counters
+        job.status = "pending"
+        job.businesses_found = 0
+        job.businesses_created = 0
+        job.businesses_updated = 0
+        job.error_log = None
+        job.started_at = None
+        job.completed_at = None
+        
+        self.db.commit()
+        self.db.refresh(job)
+        
+        return job
+    
+    def get_job_progress(self, job_id: str) -> Optional[Dict[str, Any]]:
+        """Get detailed progress information for a job"""
+        job = self.get_job(job_id)
+        
+        if not job:
+            return None
+        
+        # Calculate progress percentage
+        progress_percent = 0
+        if job.status == "completed":
+            progress_percent = 100
+        elif job.status == "running" and job.businesses_found > 0:
+            # Estimate progress based on number of sources and categories
+            total_tasks = len(job.source_ids) * len(job.categories)
+            if total_tasks > 0:
+                completed_tasks = job.businesses_found / 10  # Rough estimate
+                progress_percent = min(int((completed_tasks / total_tasks) * 100), 99)
+        
+        return {
+            "id": job.id,
+            "status": job.status,
+            "progress": progress_percent,
+            "businesses_found": job.businesses_found,
+            "businesses_created": job.businesses_created,
+            "businesses_updated": job.businesses_updated,
+            "started_at": job.started_at,
+            "completed_at": job.completed_at,
+            "duration": (job.completed_at - job.started_at).total_seconds() if job.completed_at else None,
+            "error_log": job.error_log
+        }
+    
+    async def run_job(self, job_id: str):
+        """Execute a scraping job"""
+        # Get job details
+        job = self.get_job(job_id)
+        
+        if not job or job.status != "pending":
+            logger.warning(f"Job {job_id} cannot be started (status: {job.status if job else 'not found'})")
+            return
+        
+        # Mark job as running
+        self.update_job_status(job_id, "running", started_at=datetime.now())
+        self._active_jobs.add(job_id)
+        
+        try:
+            # Convert category IDs to actual categories
+            category_ids = job.categories
+            categories = self.db.query(Category).filter(Category.id.in_(category_ids)).all()
+            
+            # Convert source IDs to actual sources
+            source_ids = job.source_ids
+            sources = self.db.query(DataSource).filter(DataSource.id.in_(source_ids)).all()
+            
+            # Initialize counters
+            businesses_found = 0
+            businesses_created = 0
+            businesses_updated = 0
+            errors = []
+            
+            # Iterate through all combinations of categories and sources
+            for category in categories:
+                for source in sources:
+                    # Check if job was cancelled
+                    if job_id not in self._active_jobs:
+                        logger.info(f"Job {job_id} was cancelled")
+                        return
+                    
+                    try:
+                        # Create scraper for this source
+                        scraper = ScraperFactory.get_scraper(source.name, self.proxy_pool)
+                        
+                        # Set of zip codes to search in, or None to search by city/state
+                        zip_codes = job.zip_codes
+                        
+                        async with scraper:
+                            # Search for businesses in this category
+                            if zip_codes:
+                                # Search by zip codes
+                                results = []
+                                for zip_code in zip_codes:
+                                    zip_results = await scraper.search_businesses(
+                                        city=job.city,
+                                        state=job.state,
+                                        category=category.name,
+                                        zip_code=zip_code
+                                    )
+                                    results.extend(zip_results)
+                            else:
+                                # Search by city/state
+                                results = await scraper.search_businesses(
+                                    city=job.city,
+                                    state=job.state,
+                                    category=category.name
+                                )
+                            
+                            # Update counter
+                            businesses_found += len(results)
+                            
+                            # Process each business
+                            for result in results:
+                                # Check if job was cancelled
+                                if job_id not in self._active_jobs:
+                                    logger.info(f"Job {job_id} was cancelled")
+                                    return
+                                
+                                try:
+                                    # Get more details if needed
+                                    if "id" in result and not result.get("address"):
+                                        details = await scraper.get_business_details(result["id"])
+                                        result.update(details)
+                                    
+                                    # Normalize data
+                                    data = await scraper.normalize_data(result)
+                                    
+                                    # Save to database
+                                    is_new = await self._save_business_data(data, source, category)
+                                    
+                                    if is_new:
+                                        businesses_created += 1
+                                    else:
+                                        businesses_updated += 1
+                                    
+                                except Exception as e:
+                                    logger.error(f"Error processing business from {source.name}: {str(e)}")
+                                    errors.append(f"Error processing business: {str(e)}")
+                    
+                    except Exception as e:
+                        logger.error(f"Error scraping {category.name} from {source.name}: {str(e)}")
+                        errors.append(f"Error scraping {category.name} from {source.name}: {str(e)}")
+            
+            # Update job with final statistics
+            if job_id in self._active_jobs:
+                self.update_job_status(
+                    job_id, 
+                    "completed",
+                    completed_at=datetime.now(),
+                    businesses_found=businesses_found,
+                    businesses_created=businesses_created,
+                    businesses_updated=businesses_updated,
+                    error_log=errors if errors else None
+                )
+                self._active_jobs.remove(job_id)
+        
+        except Exception as e:
+            logger.error(f"Error running job {job_id}: {str(e)}")
+            
+            # Update job with error
+            self.update_job_status(
+                job_id,
+                "failed",
+                completed_at=datetime.now(),
+                error_log=[f"Job failed: {str(e)}"]
+            )
+            
+            if job_id in self._active_jobs:
+                self._active_jobs.remove(job_id)
+    
+    async def _save_business_data(self, data: Dict[str, Any], source: DataSource, category: Category) -> bool:
+        """Save business data to the database"""
+        if not data or not data.get("name") or not data.get("source_id"):
+            return False
+        
+        # Check if business already exists from this source
+        business_source = self.db.query(business_sources).filter(
+            business_sources.c.source_id == source.id,
+            business_sources.c.external_id == data.get("source_id")
+        ).first()
+        
+        if business_source:
+            # Business exists, update it
+            business = self.db.query(Business).filter(Business.id == business_source.business_id).first()
+            
+            if business:
+                # Update core fields if they're better than what we have
+                if data.get("name") and len(data["name"]) > len(business.name):
+                    business.name = data["name"]
+                
+                if data.get("description") and (not business.description or len(data["description"]) > len(business.description)):
+                    business.description = data["description"]
+                
+                # Update address if we don't have one
+                if data.get("address") and not business.address:
+                    business.address = data["address"]
+                    business.city = data.get("city", business.city)
+                    business.state = data.get("state", business.state)
+                    business.zip_code = data.get("zip_code", business.zip_code)
+                
+                # Update contact info if better or missing
+                if data.get("phone") and not business.phone:
+                    business.phone = data["phone"]
+                
+                if data.get("website") and not business.website:
+                    business.website = data["website"]
+                
+                if data.get("email") and not business.email:
+                    business.email = data["email"]
+                
+                # Update coordinates if missing
+                if data.get("latitude") and data.get("longitude") and not business.latitude:
+                    business.latitude = data["latitude"]
+                    business.longitude = data["longitude"]
+                
+                # Update hours if missing
+                if data.get("hours") and not business.hours:
+                    business.hours = data["hours"]
+                
+                # Update social links if missing
+                if data.get("social_links") and not business.social_links:
+                    business.social_links = data["social_links"]
+                
+                # Update images if missing
+                if data.get("images") and not business.images:
+                    business.images = data["images"]
+                
+                # Update last_updated
+                business.last_updated = datetime.now()
+                
+                # Add this category if not already present
+                if category:
+                    existing_categories = [c.id for c in business.categories]
+                    if category.id not in existing_categories:
+                        business.categories.append(category)
+                
+                self.db.commit()
+                return False  # Not a new business
+            
+        # Create new business
+        new_business = Business(
+            id=str(uuid.uuid4()),
+            name=data.get("name", ""),
+            description=data.get("description"),
+            address=data.get("address", ""),
+            city=data.get("city", ""),
+            state=data.get("state", ""),
+            zip_code=data.get("zip_code", ""),
+            phone=data.get("phone"),
+            website=data.get("website"),
+            email=data.get("email"),
+            latitude=data.get("latitude"),
+            longitude=data.get("longitude"),
+            hours=data.get("hours"),
+            social_links=data.get("social_links"),
+            images=data.get("images"),
+            is_active=True,
+            is_verified=False,
+            first_seen=datetime.now(),
+            last_updated=datetime.now()
+        )
+        
+        # Add relationship to source
+        new_business.sources.append(source)
+        
+        # Add external ID to the association table
+        business_source_assoc = business_sources.insert().values(
+            business_id=new_business.id,
+            source_id=source.id,
+            external_id=data.get("source_id"),
+            last_scraped=datetime.now()
+        )
+        
+        # Add category relationship
+        if category:
+            new_business.categories.append(category)
+        
+        # Save to database
+        self.db.add(new_business)
+        self.db.execute(business_source_assoc)
+        self.db.commit()
+        
+        return True  # New business
