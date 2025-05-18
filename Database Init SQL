@@ -1,0 +1,148 @@
+-- Enable PostGIS extension
+CREATE EXTENSION IF NOT EXISTS postgis;
+
+-- Create tables
+CREATE TABLE IF NOT EXISTS businesses (
+    id VARCHAR PRIMARY KEY,
+    name VARCHAR NOT NULL,
+    description TEXT,
+    address VARCHAR NOT NULL,
+    address_line2 VARCHAR,
+    city VARCHAR NOT NULL,
+    state VARCHAR NOT NULL,
+    zip_code VARCHAR NOT NULL,
+    phone VARCHAR,
+    website VARCHAR,
+    email VARCHAR,
+    latitude FLOAT,
+    longitude FLOAT,
+    location GEOGRAPHY(POINT, 4326),
+    hours JSONB,
+    social_links JSONB,
+    images JSONB,
+    is_active BOOLEAN DEFAULT TRUE,
+    is_verified BOOLEAN DEFAULT FALSE,
+    first_seen TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    last_updated TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    last_verified TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE IF NOT EXISTS categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR NOT NULL UNIQUE,
+    parent_id INTEGER REFERENCES categories(id)
+);
+
+CREATE TABLE IF NOT EXISTS data_sources (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS business_categories (
+    business_id VARCHAR REFERENCES businesses(id),
+    category_id INTEGER REFERENCES categories(id),
+    PRIMARY KEY (business_id, category_id)
+);
+
+CREATE TABLE IF NOT EXISTS business_sources (
+    business_id VARCHAR REFERENCES businesses(id),
+    source_id INTEGER REFERENCES data_sources(id),
+    external_id VARCHAR,
+    last_scraped TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (business_id, source_id)
+);
+
+CREATE TABLE IF NOT EXISTS reviews (
+    id VARCHAR PRIMARY KEY,
+    business_id VARCHAR REFERENCES businesses(id) NOT NULL,
+    source_id INTEGER REFERENCES data_sources(id) NOT NULL,
+    rating FLOAT NOT NULL,
+    text TEXT,
+    author VARCHAR,
+    date TIMESTAMP WITH TIME ZONE,
+    sentiment_score FLOAT
+);
+
+CREATE TABLE IF NOT EXISTS offers (
+    id VARCHAR PRIMARY KEY,
+    business_id VARCHAR REFERENCES businesses(id) NOT NULL,
+    title VARCHAR NOT NULL,
+    description TEXT,
+    start_date TIMESTAMP WITH TIME ZONE,
+    end_date TIMESTAMP WITH TIME ZONE,
+    is_active BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS scraping_jobs (
+    id VARCHAR PRIMARY KEY,
+    city VARCHAR NOT NULL,
+    state VARCHAR NOT NULL,
+    zip_codes JSONB,
+    categories JSONB,
+    source_ids JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    started_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    status VARCHAR DEFAULT 'pending',
+    businesses_found INTEGER DEFAULT 0,
+    businesses_created INTEGER DEFAULT 0,
+    businesses_updated INTEGER DEFAULT 0,
+    error_log JSONB
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    id VARCHAR PRIMARY KEY,
+    email VARCHAR NOT NULL UNIQUE,
+    hashed_password VARCHAR NOT NULL,
+    name VARCHAR,
+    role VARCHAR DEFAULT 'user',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes
+CREATE INDEX idx_businesses_city_state ON businesses(city, state);
+CREATE INDEX idx_businesses_zip_code ON businesses(zip_code);
+CREATE INDEX idx_businesses_name ON businesses(name);
+CREATE INDEX idx_businesses_location ON businesses USING GIST(location);
+CREATE INDEX idx_business_categories_category_id ON business_categories(category_id);
+CREATE INDEX idx_business_categories_business_id ON business_categories(business_id);
+CREATE INDEX idx_business_sources_source_id ON business_sources(source_id);
+CREATE INDEX idx_business_sources_business_id ON business_sources(business_id);
+CREATE INDEX idx_reviews_business_id ON reviews(business_id);
+CREATE INDEX idx_offers_business_id ON offers(business_id);
+CREATE INDEX idx_scraping_jobs_status ON scraping_jobs(status);
+
+-- Create triggers for location calculation
+CREATE OR REPLACE FUNCTION update_business_location()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.latitude IS NOT NULL AND NEW.longitude IS NOT NULL THEN
+        NEW.location = ST_SetSRID(ST_MakePoint(NEW.longitude, NEW.latitude), 4326)::geography;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS update_business_location_trigger ON businesses;
+
+CREATE TRIGGER update_business_location_trigger
+BEFORE INSERT OR UPDATE OF latitude, longitude ON businesses
+FOR EACH ROW
+EXECUTE FUNCTION update_business_location();
+
+-- Create function to update last_updated field
+CREATE OR REPLACE FUNCTION update_last_updated_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.last_updated = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS update_businesses_last_updated ON businesses;
+
+CREATE TRIGGER update_businesses_last_updated
+BEFORE UPDATE ON businesses
+FOR EACH ROW
+EXECUTE FUNCTION update_last_updated_column();
