@@ -1,0 +1,781 @@
+from abc import ABC, abstractmethod
+import logging
+import asyncio
+import random
+import time
+from typing import List, Dict, Any, Optional, Set
+from datetime import datetime
+from urllib.parse import quote_plus
+
+import aiohttp
+from bs4 import BeautifulSoup
+from fake_useragent import UserAgent
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+from app.core.config import settings
+from app.db.models import Business, Category, DataSource
+
+logger = logging.getLogger(__name__)
+
+class BaseScraperAdapter(ABC):
+    """Abstract base class for all scraper adapters"""
+    
+    def __init__(self, source_name: str, proxy_pool: Optional[List[str]] = None):
+        self.source_name = source_name
+        self.proxy_pool = proxy_pool or []
+        self.user_agent = UserAgent()
+        self.session = None
+        self.rate_limit_delay = (0.5, 2.0)  # Random delay between requests in seconds (min, max)
+    
+    async def __aenter__(self):
+        """Initialize the session when entering the context manager"""
+        self.session = aiohttp.ClientSession(headers=self._get_headers())
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Close the session when exiting the context manager"""
+        if self.session:
+            await self.session.close()
+    
+    def _get_headers(self) -> Dict[str, str]:
+        """Generate random headers to avoid detection"""
+        return {
+            "User-Agent": self.user_agent.random,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Referer": "https://www.google.com/",
+            "DNT": "1",  # Do Not Track
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "Pragma": "no-cache",
+            "Cache-Control": "no-cache",
+        }
+    
+    def _get_proxy(self) -> Optional[str]:
+        """Get a random proxy from the pool if available"""
+        if not self.proxy_pool:
+            return None
+        return random.choice(self.proxy_pool)
+    
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((aiohttp.ClientError, asyncio.TimeoutError))
+    )
+    async def _make_request(self, url: str, params: Dict = None) -> str:
+        """Make an HTTP request with retry logic and rate limiting"""
+        if not self.session:
+            raise RuntimeError("Session not initialized. Use 'async with' context manager.")
+        
+        # Add rate limiting delay to avoid being blocked
+        await asyncio.sleep(random.uniform(*self.rate_limit_delay))
+        
+        # Make the request with a proxy if available
+        proxy = self._get_proxy()
+        async with self.session.get(url, params=params, proxy=proxy, timeout=30) as response:
+            if response.status >= 400:
+                logger.error(f"Error fetching {url}: {response.status}")
+                response.raise_for_status()
+            
+            content = await response.text()
+            return content
+    
+    @abstractmethod
+    async def search_businesses(self, city: str, state: str, category: str, zip_code: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Search for businesses in the given location and category"""
+        pass
+    
+    @abstractmethod
+    async def get_business_details(self, business_id: str) -> Dict[str, Any]:
+        """Get detailed information about a specific business"""
+        pass
+    
+    @abstractmethod
+    async def normalize_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize scraped data to match our database schema"""
+        pass
+
+
+class YelpScraperAdapter(BaseScraperAdapter):
+    """Scraper adapter for Yelp"""
+    
+    def __init__(self, proxy_pool: Optional[List[str]] = None, api_key: Optional[str] = None):
+        super().__init__("yelp", proxy_pool)
+        self.api_key = api_key or settings.YELP_API_KEY
+        # Slower rate limiting for Yelp to avoid blocks
+        self.rate_limit_delay = (1.0, 3.0)
+        
+        # Base URLs
+        self.search_url = "https://api.yelp.com/v3/businesses/search" if self.api_key else "https://www.yelp.com/search"
+        self.business_url = "https://api.yelp.com/v3/businesses/{id}" if self.api_key else "https://www.yelp.com/biz/{id}"
+    
+    def _get_headers(self) -> Dict[str, str]:
+        """Add API key to headers if available"""
+        headers = super()._get_headers()
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
+    
+    async def search_businesses(self, city: str, state: str, category: str, zip_code: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Search for businesses in Yelp"""
+        logger.info(f"Searching Yelp for {category} businesses in {city}, {state}")
+        
+        if self.api_key:
+            # Use Yelp Fusion API if we have an API key
+            return await self._search_api(city, state, category, zip_code)
+        else:
+            # Fallback to web scraping
+            return await self._search_scrape(city, state, category, zip_code)
+    
+    async def _search_api(self, city: str, state: str, category: str, zip_code: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Search using Yelp API"""
+        location = f"{city}, {state}"
+        if zip_code:
+            location = f"{location} {zip_code}"
+        
+        params = {
+            "term": category,
+            "location": location,
+            "limit": 50,
+            "sort_by": "best_match"
+        }
+        
+        try:
+            response = await self._make_request(self.search_url, params)
+            data = json.loads(response)
+            return data.get("businesses", [])
+        except Exception as e:
+            logger.error(f"Error searching Yelp API: {str(e)}")
+            return []
+    
+    async def _search_scrape(self, city: str, state: str, category: str, zip_code: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Search by scraping Yelp website"""
+        location = f"{city}, {state}"
+        if zip_code:
+            location = f"{location} {zip_code}"
+        
+        encoded_location = quote_plus(location)
+        encoded_category = quote_plus(category)
+        
+        url = f"{self.search_url}?find_desc={encoded_category}&find_loc={encoded_location}"
+        businesses = []
+        
+        try:
+            content = await self._make_request(url)
+            soup = BeautifulSoup(content, 'html.parser')
+            
+            # Extract business listings
+            business_listings = soup.select('div.businessName__09f24__EYSZE')
+            
+            for listing in business_listings:
+                try:
+                    # Get business name
+                    name_element = listing.select_one('a span')
+                    if not name_element:
+                        continue
+                    
+                    name = name_element.text.strip()
+                    
+                    # Get business URL/ID
+                    link_element = listing.select_one('a')
+                    if not link_element or not link_element.get('href'):
+                        continue
+                    
+                    href = link_element['href']
+                    business_id = href.split('/biz/')[-1].split('?')[0] if '/biz/' in href else None
+                    
+                    if not business_id:
+                        continue
+                    
+                    # Basic business data
+                    business_data = {
+                        "id": business_id,
+                        "name": name,
+                        "url": f"https://www.yelp.com/biz/{business_id}",
+                        "source": "yelp"
+                    }
+                    
+                    businesses.append(business_data)
+                except Exception as e:
+                    logger.warning(f"Error parsing Yelp business listing: {str(e)}")
+            
+            return businesses
+        except Exception as e:
+            logger.error(f"Error scraping Yelp: {str(e)}")
+            return []
+    
+    async def get_business_details(self, business_id: str) -> Dict[str, Any]:
+        """Get detailed business information from Yelp"""
+        logger.info(f"Getting Yelp details for business {business_id}")
+        
+        if self.api_key:
+            # Use Yelp Fusion API if we have an API key
+            url = self.business_url.format(id=business_id)
+            try:
+                response = await self._make_request(url)
+                data = json.loads(response)
+                return await self.normalize_data(data)
+            except Exception as e:
+                logger.error(f"Error getting Yelp business details: {str(e)}")
+                return {}
+        else:
+            # Fallback to web scraping
+            url = self.business_url.format(id=business_id)
+            try:
+                content = await self._make_request(url)
+                return await self._parse_business_page(content, business_id)
+            except Exception as e:
+                logger.error(f"Error scraping Yelp business page: {str(e)}")
+                return {}
+    
+    async def _parse_business_page(self, content: str, business_id: str) -> Dict[str, Any]:
+        """Parse a Yelp business page HTML"""
+        soup = BeautifulSoup(content, 'html.parser')
+        business_data = {"id": business_id, "source": "yelp"}
+        
+        try:
+            # Business name
+            name_element = soup.select_one('h1.businessName__09f24__EYSZE')
+            if name_element:
+                business_data["name"] = name_element.text.strip()
+            
+            # Address
+            address_element = soup.select_one('address')
+            if address_element:
+                address_text = address_element.text.strip()
+                # Parse address components
+                address_parts = [p.strip() for p in address_text.split(',')]
+                if len(address_parts) >= 3:
+                    business_data["address"] = address_parts[0]
+                    city_state_zip = address_parts[1].strip().split(' ')
+                    if len(city_state_zip) >= 3:
+                        business_data["city"] = ' '.join(city_state_zip[:-2])
+                        business_data["state"] = city_state_zip[-2]
+                        business_data["zip_code"] = city_state_zip[-1]
+            
+            # Phone
+            phone_element = soup.select_one('p[data-testid="phone"]')
+            if phone_element:
+                business_data["phone"] = phone_element.text.strip()
+            
+            # Website
+            website_element = soup.select_one('a[href*="biz_redir"]')
+            if website_element:
+                business_data["website"] = website_element['href']
+            
+            # Categories
+            category_elements = soup.select('a.categoryLink__09f24__NPGVU')
+            if category_elements:
+                business_data["categories"] = [category.text.strip() for category in category_elements]
+            
+            # Reviews/Rating
+            rating_element = soup.select_one('div.rating__09f24__LYMPO')
+            if rating_element:
+                rating_text = rating_element.select_one('span').get('aria-label', '')
+                if 'star rating' in rating_text:
+                    try:
+                        business_data["rating"] = float(rating_text.split(' ')[0])
+                    except (ValueError, IndexError):
+                        pass
+            
+            # Hours
+            hours_elements = soup.select('tr.hours-table-row')
+            if hours_elements:
+                hours = {}
+                days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                for i, hour_element in enumerate(hours_elements):
+                    if i < len(days):
+                        time_element = hour_element.select_one('p.hours-table-hours-range')
+                        if time_element:
+                            hours[days[i].lower()] = time_element.text.strip()
+                
+                business_data["hours"] = hours
+            
+            # Images
+            image_elements = soup.select('img.photo-header-media-image')
+            if image_elements:
+                business_data["images"] = [img.get('src') for img in image_elements if img.get('src')]
+                
+            return business_data
+        except Exception as e:
+            logger.error(f"Error parsing Yelp business page: {str(e)}")
+            return {"id": business_id, "source": "yelp"}
+    
+    async def normalize_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize Yelp data to match our schema"""
+        if not data:
+            return {}
+        
+        normalized = {
+            "source": "yelp",
+            "source_id": data.get("id"),
+            "name": data.get("name", ""),
+            "phone": data.get("phone", ""),
+            "website": data.get("url", ""),
+            "categories": []
+        }
+        
+        # Process categories
+        if "categories" in data:
+            if isinstance(data["categories"], list):
+                if all(isinstance(c, dict) and "title" in c for c in data["categories"]):
+                    # API format
+                    normalized["categories"] = [c["title"] for c in data["categories"]]
+                else:
+                    # Already processed format
+                    normalized["categories"] = data["categories"]
+        
+        # Process address
+        if "location" in data:
+            location = data["location"]
+            address_parts = location.get("display_address", [])
+            
+            if address_parts:
+                normalized["address"] = address_parts[0]
+                
+                # Try to parse city, state, zip from the last part of the address
+                if len(address_parts) > 1:
+                    last_part = address_parts[-1]
+                    parts = last_part.split(", ")
+                    if len(parts) >= 2:
+                        city = parts[0]
+                        state_zip = parts[1].split(" ")
+                        if len(state_zip) >= 2:
+                            state = state_zip[0]
+                            zip_code = state_zip[1]
+                            
+                            normalized["city"] = city
+                            normalized["state"] = state
+                            normalized["zip_code"] = zip_code
+            
+            # Add coordinates if available
+            if "coordinates" in location:
+                normalized["latitude"] = location["coordinates"].get("latitude")
+                normalized["longitude"] = location["coordinates"].get("longitude")
+        
+        # Process hours
+        if "hours" in data:
+            if isinstance(data["hours"], list) and data["hours"]:
+                hours_data = data["hours"][0]
+                if "open" in hours_data:
+                    formatted_hours = {}
+                    days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                    
+                    for hour in hours_data["open"]:
+                        day_idx = hour.get("day")
+                        if day_idx is not None and 0 <= day_idx < len(days):
+                            day = days[day_idx].lower()
+                            start = hour.get("start")
+                            end = hour.get("end")
+                            
+                            if start and end:
+                                # Format time from 0000 to 00:00
+                                start_fmt = f"{start[:2]}:{start[2:]}"
+                                end_fmt = f"{end[:2]}:{end[2:]}"
+                                
+                                if day in formatted_hours:
+                                    formatted_hours[day] += f", {start_fmt}-{end_fmt}"
+                                else:
+                                    formatted_hours[day] = f"{start_fmt}-{end_fmt}"
+                    
+                    normalized["hours"] = formatted_hours
+            else:
+                # Already processed hours
+                normalized["hours"] = data.get("hours", {})
+        
+        # Process images
+        if "photos" in data:
+            normalized["images"] = data["photos"]
+        elif "images" in data:
+            normalized["images"] = data["images"]
+        
+        # Add rating if available
+        if "rating" in data:
+            normalized["rating"] = data["rating"]
+        
+        return normalized
+
+
+class GooglePlacesScraperAdapter(BaseScraperAdapter):
+    """Scraper adapter for Google Places"""
+    
+    def __init__(self, proxy_pool: Optional[List[str]] = None, api_key: Optional[str] = None):
+        super().__init__("google_places", proxy_pool)
+        self.api_key = api_key or settings.GOOGLE_PLACES_API_KEY
+        self.rate_limit_delay = (1.5, 3.5)  # Google is more strict with rate limiting
+    
+    async def search_businesses(self, city: str, state: str, category: str, zip_code: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Search for businesses using Google Places API"""
+        if not self.api_key:
+            logger.warning("Google Places API key not set, skipping search")
+            return []
+        
+        logger.info(f"Searching Google Places for {category} businesses in {city}, {state}")
+        
+        location = f"{city}, {state}"
+        if zip_code:
+            location = f"{location} {zip_code}"
+        
+        url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
+        params = {
+            "query": f"{category} in {location}",
+            "key": self.api_key
+        }
+        
+        try:
+            response = await self._make_request(url, params)
+            data = json.loads(response)
+            
+            if data.get("status") != "OK":
+                logger.error(f"Google Places API error: {data.get('status')}")
+                return []
+            
+            results = data.get("results", [])
+            next_page_token = data.get("next_page_token")
+            
+            # If there's a next page token, wait and fetch more results
+            if next_page_token:
+                # Need to wait for token to become valid
+                await asyncio.sleep(2)
+                
+                params = {
+                    "pagetoken": next_page_token,
+                    "key": self.api_key
+                }
+                
+                try:
+                    next_response = await self._make_request(url, params)
+                    next_data = json.loads(next_response)
+                    
+                    if next_data.get("status") == "OK":
+                        results.extend(next_data.get("results", []))
+                except Exception as e:
+                    logger.error(f"Error fetching next page from Google Places: {str(e)}")
+            
+            # Add source information
+            for result in results:
+                result["source"] = "google_places"
+            
+            return results
+        except Exception as e:
+            logger.error(f"Error searching Google Places: {str(e)}")
+            return []
+    
+    async def get_business_details(self, place_id: str) -> Dict[str, Any]:
+        """Get detailed business information from Google Places"""
+        if not self.api_key:
+            logger.warning("Google Places API key not set, skipping details fetch")
+            return {}
+        
+        logger.info(f"Getting Google Places details for place_id {place_id}")
+        
+        url = "https://maps.googleapis.com/maps/api/place/details/json"
+        params = {
+            "place_id": place_id,
+            "fields": "name,formatted_address,formatted_phone_number,website,url,rating,user_ratings_total,opening_hours,photos,geometry",
+            "key": self.api_key
+        }
+        
+        try:
+            response = await self._make_request(url, params)
+            data = json.loads(response)
+            
+            if data.get("status") != "OK":
+                logger.error(f"Google Places Details API error: {data.get('status')}")
+                return {}
+            
+            result = data.get("result", {})
+            result["source"] = "google_places"
+            result["source_id"] = place_id
+            
+            return await self.normalize_data(result)
+        except Exception as e:
+            logger.error(f"Error getting Google Places details: {str(e)}")
+            return {}
+    
+    async def normalize_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize Google Places data to match our schema"""
+        if not data:
+            return {}
+        
+        normalized = {
+            "source": "google_places",
+            "source_id": data.get("place_id") or data.get("source_id"),
+            "name": data.get("name", ""),
+            "phone": data.get("formatted_phone_number", ""),
+            "website": data.get("website", ""),
+            "categories": []
+        }
+        
+        # Process address
+        address = data.get("formatted_address", "")
+        if address:
+            # Try to parse components from formatted address
+            # Example: "123 Main St, Orlando, FL 32801, USA"
+            address_parts = address.split(",")
+            
+            if len(address_parts) >= 3:
+                normalized["address"] = address_parts[0].strip()
+                
+                # City
+                normalized["city"] = address_parts[-3].strip()
+                
+                # State and ZIP
+                state_zip = address_parts[-2].strip().split(" ")
+                if len(state_zip) >= 2:
+                    normalized["state"] = state_zip[0]
+                    normalized["zip_code"] = state_zip[1]
+        
+        # Process coordinates
+        if "geometry" in data and "location" in data["geometry"]:
+            location = data["geometry"]["location"]
+            normalized["latitude"] = location.get("lat")
+            normalized["longitude"] = location.get("lng")
+        
+        # Process hours
+        if "opening_hours" in data and "periods" in data["opening_hours"]:
+            hours = {}
+            days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+            
+            for period in data["opening_hours"]["periods"]:
+                if "open" in period and "day" in period["open"]:
+                    day_idx = period["open"]["day"]
+                    if 0 <= day_idx < len(days):
+                        day = days[day_idx].lower()
+                        
+                        open_time = period["open"].get("time", "0000")
+                        close_time = period.get("close", {}).get("time", "0000")
+                        
+                        # Format time from 0000 to 00:00
+                        open_fmt = f"{open_time[:2]}:{open_time[2:]}"
+                        close_fmt = f"{close_time[:2]}:{close_time[2:]}"
+                        
+                        hours[day] = f"{open_fmt}-{close_fmt}"
+            
+            normalized["hours"] = hours
+        
+        # Process images
+        if "photos" in data:
+            # We would need to make additional API calls to get full photos
+            # For now, we'll just store the photo_references
+            photo_references = [photo.get("photo_reference") for photo in data["photos"] if "photo_reference" in photo]
+            
+            if photo_references and self.api_key:
+                # Convert references to actual URLs
+                image_urls = []
+                for ref in photo_references[:5]:  # Limit to 5 images
+                    image_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference={ref}&key={self.api_key}"
+                    image_urls.append(image_url)
+                
+                normalized["images"] = image_urls
+        
+        # Add rating if available
+        if "rating" in data:
+            normalized["rating"] = data["rating"]
+        
+        # Try to extract categories from types
+        if "types" in data:
+            normalized["categories"] = [t.replace("_", " ").title() for t in data["types"] if t not in ("point_of_interest", "establishment")]
+        
+        return normalized
+
+
+class YellowPagesScraperAdapter(BaseScraperAdapter):
+    """Scraper adapter for YellowPages"""
+    
+    def __init__(self, proxy_pool: Optional[List[str]] = None):
+        super().__init__("yellow_pages", proxy_pool)
+        self.rate_limit_delay = (1.0, 2.5)
+        self.base_url = "https://www.yellowpages.com"
+    
+    async def search_businesses(self, city: str, state: str, category: str, zip_code: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Search for businesses on YellowPages"""
+        logger.info(f"Searching YellowPages for {category} businesses in {city}, {state}")
+        
+        # Format the location for the URL
+        location = f"{city}-{state}".lower().replace(" ", "-")
+        if zip_code:
+            location = zip_code
+        
+        # Format the search term for the URL
+        search_term = category.lower().replace(" ", "-")
+        
+        url = f"{self.base_url}/search?search_terms={search_term}&geo_location_terms={location}"
+        businesses = []
+        
+        try:
+            content = await self._make_request(url)
+            soup = BeautifulSoup(content, 'html.parser')
+            
+            # Extract business listings
+            listings = soup.select('div.result')
+            
+            for listing in listings:
+                try:
+                    # Get business name and URL
+                    name_element = listing.select_one('a.business-name')
+                    if not name_element:
+                        continue
+                    
+                    name = name_element.text.strip()
+                    href = name_element.get('href', '')
+                    
+                    # Create a unique ID from the URL
+                    business_id = href.split('/')[-1] if href else None
+                    if not business_id:
+                        continue
+                    
+                    # Basic business data
+                    business_data = {
+                        "id": business_id,
+                        "name": name,
+                        "url": f"{self.base_url}{href}" if href.startswith('/') else href,
+                        "source": "yellow_pages"
+                    }
+                    
+                    # Get category
+                    category_element = listing.select_one('div.categories')
+                    if category_element:
+                        categories = [a.text.strip() for a in category_element.select('a')]
+                        if categories:
+                            business_data["categories"] = categories
+                    
+                    # Get address
+                    address_element = listing.select_one('div.street-address')
+                    if address_element:
+                        business_data["address"] = address_element.text.strip()
+                    
+                    locality_element = listing.select_one('div.locality')
+                    if locality_element:
+                        locality = locality_element.text.strip()
+                        # Parse city, state, zip
+                        parts = locality.split(',')
+                        if len(parts) == 2:
+                            business_data["city"] = parts[0].strip()
+                            state_zip = parts[1].strip().split(' ')
+                            if len(state_zip) >= 2:
+                                business_data["state"] = state_zip[0]
+                                business_data["zip_code"] = state_zip[1]
+                    
+                    # Get phone
+                    phone_element = listing.select_one('div.phones')
+                    if phone_element:
+                        business_data["phone"] = phone_element.text.strip()
+                    
+                    businesses.append(business_data)
+                except Exception as e:
+                    logger.warning(f"Error parsing YellowPages listing: {str(e)}")
+            
+            return businesses
+        except Exception as e:
+            logger.error(f"Error scraping YellowPages: {str(e)}")
+            return []
+    
+    async def get_business_details(self, business_id: str) -> Dict[str, Any]:
+        """Get detailed business information from YellowPages"""
+        logger.info(f"Getting YellowPages details for business {business_id}")
+        
+        url = f"{self.base_url}/biz/{business_id}"
+        
+        try:
+            content = await self._make_request(url)
+            return await self._parse_business_page(content, business_id)
+        except Exception as e:
+            logger.error(f"Error scraping YellowPages business page: {str(e)}")
+            return {}
+    
+    async def _parse_business_page(self, content: str, business_id: str) -> Dict[str, Any]:
+        """Parse a YellowPages business page HTML"""
+        soup = BeautifulSoup(content, 'html.parser')
+        business_data = {"id": business_id, "source": "yellow_pages"}
+        
+        try:
+            # Business name
+            name_element = soup.select_one('h1[itemprop="name"]')
+            if name_element:
+                business_data["name"] = name_element.text.strip()
+            
+            # Address
+            street_element = soup.select_one('span[itemprop="streetAddress"]')
+            if street_element:
+                business_data["address"] = street_element.text.strip()
+            
+            locality_element = soup.select_one('span[itemprop="addressLocality"]')
+            if locality_element:
+                business_data["city"] = locality_element.text.strip().rstrip(',')
+            
+            region_element = soup.select_one('span[itemprop="addressRegion"]')
+            if region_element:
+                business_data["state"] = region_element.text.strip()
+            
+            postal_element = soup.select_one('span[itemprop="postalCode"]')
+            if postal_element:
+                business_data["zip_code"] = postal_element.text.strip()
+            
+            # Phone
+            phone_element = soup.select_one('a[class*="phone"]')
+            if phone_element:
+                business_data["phone"] = phone_element.text.strip()
+            
+            # Website
+            website_element = soup.select_one('a[class*="website-link"]')
+            if website_element:
+                business_data["website"] = website_element.get('href', '')
+            
+            # Categories
+            category_elements = soup.select('div.categories a')
+            if category_elements:
+                business_data["categories"] = [category.text.strip() for category in category_elements]
+            
+            # Hours
+            hours_elements = soup.select('div.open-hours table tr')
+            if hours_elements:
+                hours = {}
+                
+                for element in hours_elements:
+                    day_element = element.select_one('th')
+                    time_element = element.select_one('td')
+                    
+                    if day_element and time_element:
+                        day = day_element.text.strip().lower()
+                        time_text = time_element.text.strip()
+                        
+                        if day and time_text:
+                            hours[day] = time_text
+                
+                business_data["hours"] = hours
+            
+            # Images
+            image_elements = soup.select('div.gallery-image img')
+            if image_elements:
+                business_data["images"] = [img.get('src') for img in image_elements if img.get('src')]
+            
+            return business_data
+        except Exception as e:
+            logger.error(f"Error parsing YellowPages business page: {str(e)}")
+            return {"id": business_id, "source": "yellow_pages"}
+    
+    async def normalize_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize YellowPages data to match our schema"""
+        if not data:
+            return {}
+        
+        # YellowPages data is already normalized during scraping
+        return data
+
+
+# Factory class to get the appropriate scraper
+class ScraperFactory:
+    """Factory class to create scraper instances"""
+    
+    @staticmethod
+    def get_scraper(source: str, proxy_pool: Optional[List[str]] = None) -> BaseScraperAdapter:
+        """Get a scraper adapter based on the source name"""
+        if source == "yelp":
+            return YelpScraperAdapter(proxy_pool)
+        elif source == "google_places":
+            return GooglePlacesScraperAdapter(proxy_pool)
+        elif source == "yellow_pages":
+            return YellowPagesScraperAdapter(proxy_pool)
+        else:
+            raise ValueError(f"Unsupported source: {source}")
