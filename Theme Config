@@ -1,0 +1,548 @@
+import React, { useState } from 'react';
+import { 
+  Box,
+  Paper,
+  Typography,
+  Card,
+  CardContent,
+  CardHeader,
+  Avatar,
+  Button,
+  Divider,
+  Grid,
+  TextField,
+  Chip,
+  Stack,
+  CircularProgress,
+  useTheme
+} from '@mui/material';
+import { 
+  Search as SearchIcon, 
+  Business as BusinessIcon,
+  MapRounded as MapIcon,
+  InsertChart as ChartIcon
+} from '@mui/icons-material';
+import MainLayout from '../components/MainLayout';
+import Logo from '../components/Logo';
+
+const LandingPage = () => {
+  const theme = useTheme();
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [subscribed, setSubscribed] = useState(false);
+
+  const handleSubscribe = () => {
+    if (!email) return;
+    
+    setLoading(true);
+    
+    // Simulate API call
+    setTimeout(() => {
+      setLoading(false);
+      setSubscribed(true);
+      setEmail('');
+    }, 1500);
+  };
+
+  const features = [
+    {
+      title: 'Intelligent Data Collection',
+      description: 'Automatically scrape business data from multiple sources including Yelp, Google Places, and Yellow Pages.',
+      icon: <SearchIcon fontSize="large" sx={{ color: 'primary.main' }} />
+    },
+    {
+      title: 'Comprehensive Business Profiles',
+      description: 'Get detailed information including contact details, hours, reviews, and social media for every business.',
+      icon: <BusinessIcon fontSize="large" sx={{ color: 'primary.main' }} />
+    },
+    {
+      title: 'Interactive Mapping',
+      description: 'Visualize business data on interactive maps with density overlays and location clustering.',
+      icon: <MapIcon fontSize="large" sx={{ color: 'primary.main' }} />
+    },
+    {
+      title: 'Advanced Analytics',
+      description: 'Analyze business trends, categories, and distribution with powerful visualization tools.',
+      icon: <ChartIcon fontSize="large" sx={{ color: 'primary.main' }} />
+    }
+  ];
+
+  const testimonials = [
+    {
+      name: 'Sarah Johnson',
+      role: 'Marketing Director',
+      company: 'Local Reach Media',
+      avatar: 'SJ',
+      content: 'BizScout has revolutionized how we gather data for our marketing campaigns. The accuracy and depth of information we get is outstanding.'
+    },
+    {
+      name: 'Michael Chen',
+      role: 'Business Analyst',
+      company: 'Urban Insights',
+      avatar: 'MC',
+      content: 'The mapping and analytics features have helped us identify market opportunities that we would have otherwise missed. Highly recommended!'
+    },
+    {
+      name: 'Alex Rivera',
+      role: 'Real Estate Developer',
+      company: 'Cityscape Properties',
+      avatar: 'AR',
+      content: 'BizScout gives us the competitive edge in identifying emerging business districts. It\'s become an essential tool for our location research.'
+    }
+  ];
+
+  return (
+    <MainLayout title="Intelligent Business Data Collection" maxWidth={false}>
+      {/* Hero Section */}
+      <Box 
+        sx={{ 
+          position: 'relative',
+          bgcolor: 'primary.main',
+          color: 'white',
+          py: { xs: 8, md: 12 },
+          borderRadius: { xs: 0, md: '0 0 20px 20px' },
+          overflow: 'hidden'
+        }}
+      >
+        {/* Background Pattern */}
+        <Box 
+          sx={{ 
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            height: '100%',
+            width: '100%',
+            opacity: 0.1,
+            backgroundImage: 'radial-gradient(circle at 20% 25%, rgba(255, 255, 255, 0.2) 0%, transparent 8%), radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.2) 0%, transparent 10%)',
+            backgroundSize: '60px 60px',
+            transform: 'rotate(10deg) scale(2)',
+            zIndex: 0
+          }} 
+        />
+        
+        <Box sx={{ position: 'relative', zIndex: 1, px: { xs: 3, md: 10 } }}>
+          <Grid container spacing={6} alignItems="center">
+            <Grid item xs={12} md={7}>
+              <Typography 
+                variant="h2" 
+                component="h1" 
+                sx={{ 
+                  fontWeight: 800, 
+                  mb: 2,
+                  fontSize: { xs: '2.5rem', md: '3.5rem' }
+                }}
+              >
+                Discover Local Businesses with
+                <Box component="span" sx={{ color: theme.palette.accent.main }}> AI-Powered </Box>
+                Insights
+              </Typography>
+              
+              <Typography 
+                variant="h5" 
+                sx={{ 
+                  opacity: 0.9, 
+                  mb: 4,
+                  fontWeight: 400
+                }}
+              >
+                Automate business data collection, analyze market trends, and visualize opportunities with BizScout.
+              </Typography>
+              
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Button 
+                  variant="contained" 
+                  size="large"
+                  sx={{ 
+                    bgcolor: 'accent.main',
+                    '&:hover': {
+                      bgcolor: 'accent.dark',
+                    },
+                    px: 4
+                  }}
+                >
+                  Get Started
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  size="large"
+                  sx={{ 
+                    color: 'white',
+                    borderColor: 'white',
+                    '&:hover': {
+                      borderColor: 'white',
+                      bgcolor: 'rgba(255, 255, 255, 0.1)',
+                    },
+                    px: 4
+                  }}
+                >
+                  View Demo
+                </Button>
+              </Box>
+              
+              <Stack 
+                direction="row" 
+                spacing={2} 
+                sx={{ 
+                  mt: 6,
+                  alignItems: 'center'
+                }}
+              >
+                <Chip 
+                  label="Yelp" 
+                  variant="outlined" 
+                  sx={{ 
+                    color: 'white', 
+                    borderColor: 'rgba(255, 255, 255, 0.3)' 
+                  }} 
+                />
+                <Chip 
+                  label="Google Places" 
+                  variant="outlined" 
+                  sx={{ 
+                    color: 'white', 
+                    borderColor: 'rgba(255, 255, 255, 0.3)' 
+                  }} 
+                />
+                <Chip 
+                  label="Yellow Pages" 
+                  variant="outlined" 
+                  sx={{ 
+                    color: 'white', 
+                    borderColor: 'rgba(255, 255, 255, 0.3)' 
+                  }} 
+                />
+                <Typography variant="body2" sx={{ opacity: 0.7 }}>
+                  + more
+                </Typography>
+              </Stack>
+            </Grid>
+            
+            <Grid item xs={12} md={5} sx={{ display: { xs: 'none', md: 'block' } }}>
+              <Box 
+                sx={{ 
+                  position: 'relative',
+                  height: 400,
+                  width: '100%',
+                  bgcolor: 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: 4,
+                  boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)',
+                  overflow: 'hidden'
+                }}
+              >
+                {/* This would be replaced with an actual demo image/screenshot */}
+                <Box sx={{ p: 4, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                  <Logo size="large" variant="white" />
+                  <Typography variant="h6" sx={{ mt: 4, textAlign: 'center' }}>
+                    Dashboard Demo
+                  </Typography>
+                </Box>
+              </Box>
+            </Grid>
+          </Grid>
+        </Box>
+      </Box>
+
+      {/* Features Section */}
+      <Box sx={{ py: 10, px: { xs: 3, md: 10 } }}>
+        <Typography 
+          variant="h3" 
+          component="h2" 
+          sx={{ 
+            textAlign: 'center', 
+            mb: 2,
+            fontWeight: 700
+          }}
+        >
+          Powerful Features
+        </Typography>
+        
+        <Typography 
+          variant="h6" 
+          component="p" 
+          sx={{ 
+            textAlign: 'center', 
+            mb: 8,
+            color: 'text.secondary',
+            maxWidth: 800,
+            mx: 'auto'
+          }}
+        >
+          BizScout provides all the tools you need to discover, analyze, and visualize business data in any city.
+        </Typography>
+        
+        <Grid container spacing={4}>
+          {features.map((feature, index) => (
+            <Grid item xs={12} sm={6} md={3} key={index}>
+              <Paper 
+                elevation={0}
+                sx={{ 
+                  p: 4, 
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  borderRadius: 3,
+                  transition: 'transform 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-5px)',
+                    boxShadow: 3
+                  }
+                }}
+              >
+                <Box 
+                  sx={{ 
+                    mb: 2,
+                    p: 1.5,
+                    borderRadius: '50%',
+                    bgcolor: 'primary.light',
+                    bgcolor: 'rgba(29, 78, 216, 0.1)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                  }}
+                >
+                  {feature.icon}
+                </Box>
+                <Typography 
+                  variant="h6" 
+                  component="h3" 
+                  sx={{ 
+                    mb: 2,
+                    fontWeight: 600
+                  }}
+                >
+                  {feature.title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {feature.description}
+                </Typography>
+              </Paper>
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
+      
+      {/* Testimonials Section */}
+      <Box 
+        sx={{ 
+          bgcolor: 'rgba(29, 78, 216, 0.04)',
+          py: 10, 
+          px: { xs: 3, md: 10 } 
+        }}
+      >
+        <Typography 
+          variant="h3" 
+          component="h2" 
+          sx={{ 
+            textAlign: 'center', 
+            mb: 2,
+            fontWeight: 700
+          }}
+        >
+          What Our Users Say
+        </Typography>
+        
+        <Typography 
+          variant="h6" 
+          component="p" 
+          sx={{ 
+            textAlign: 'center', 
+            mb: 8,
+            color: 'text.secondary',
+            maxWidth: 800,
+            mx: 'auto'
+          }}
+        >
+          Join hundreds of businesses using BizScout to discover market opportunities and gain competitive insights.
+        </Typography>
+        
+        <Grid container spacing={4}>
+          {testimonials.map((testimonial, index) => (
+            <Grid item xs={12} md={4} key={index}>
+              <Card 
+                elevation={0}
+                sx={{ 
+                  height: '100%',
+                  borderRadius: 3,
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+                  transition: 'transform 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-5px)',
+                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.1)'
+                  }
+                }}
+              >
+                <CardContent sx={{ p: 4 }}>
+                  <Typography 
+                    variant="body1"
+                    color="text.secondary"
+                    sx={{ 
+                      mb: 3,
+                      fontStyle: 'italic',
+                      minHeight: 150
+                    }}
+                  >
+                    "{testimonial.content}"
+                  </Typography>
+                  <Divider sx={{ mb: 3 }} />
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Avatar 
+                      sx={{ 
+                        mr: 2,
+                        bgcolor: index % 2 === 0 ? 'primary.main' : 'accent.main'
+                      }}
+                    >
+                      {testimonial.avatar}
+                    </Avatar>
+                    <Box>
+                      <Typography variant="subtitle2" fontWeight="bold">
+                        {testimonial.name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {testimonial.role}, {testimonial.company}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
+      
+      {/* CTA Section */}
+      <Box 
+        sx={{ 
+          py: 10, 
+          px: { xs: 3, md: 10 },
+          textAlign: 'center'
+        }}
+      >
+        <Paper
+          elevation={0}
+          sx={{
+            maxWidth: 900,
+            mx: 'auto',
+            p: { xs: 4, md: 6 },
+            borderRadius: 4,
+            backgroundColor: 'primary.main',
+            backgroundImage: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+            color: 'white',
+            position: 'relative',
+            overflow: 'hidden'
+          }}
+        >
+          {/* Background Pattern */}
+          <Box 
+            sx={{ 
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              height: '100%',
+              width: '100%',
+              opacity: 0.1,
+              backgroundImage: 'radial-gradient(circle at 20% 25%, rgba(255, 255, 255, 0.3) 0%, transparent 15%)',
+              backgroundSize: '120px 120px',
+              zIndex: 0
+            }} 
+          />
+          
+          <Box sx={{ position: 'relative', zIndex: 1 }}>
+            <Typography 
+              variant="h3" 
+              component="h2"
+              sx={{ 
+                fontWeight: 700,
+                mb: 2
+              }}
+            >
+              Ready to Transform Your Business Research?
+            </Typography>
+            
+            <Typography 
+              variant="h6"
+              sx={{ 
+                opacity: 0.9,
+                mb: 4,
+                maxWidth: 600,
+                mx: 'auto'
+              }}
+            >
+              Get started with BizScout today and discover the power of intelligent business data collection.
+            </Typography>
+            
+            <Box 
+              sx={{ 
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                gap: 2,
+                maxWidth: 500,
+                mx: 'auto',
+                mb: 4
+              }}
+            >
+              <TextField
+                variant="outlined"
+                placeholder="Enter your email"
+                fullWidth
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading || subscribed}
+                sx={{
+                  bgcolor: 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: 1,
+                  '& .MuiOutlinedInput-root': {
+                    color: 'white',
+                    '& fieldset': {
+                      borderColor: 'rgba(255, 255, 255, 0.3)',
+                    },
+                    '&:hover fieldset': {
+                      borderColor: 'rgba(255, 255, 255, 0.5)',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: 'white',
+                    },
+                  },
+                  '& .MuiInputBase-input::placeholder': {
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    opacity: 1,
+                  },
+                }}
+              />
+              <Button
+                variant="contained"
+                size="large"
+                disabled={loading || subscribed || !email}
+                onClick={handleSubscribe}
+                sx={{
+                  bgcolor: 'accent.main',
+                  '&:hover': {
+                    bgcolor: 'accent.dark',
+                  },
+                  px: 4,
+                  height: 56,
+                  minWidth: { xs: '100%', sm: 150 }
+                }}
+              >
+                {loading ? (
+                  <CircularProgress size={24} color="inherit" />
+                ) : subscribed ? (
+                  'Subscribed!'
+                ) : (
+                  'Get Started'
+                )}
+              </Button>
+            </Box>
+            
+            <Typography variant="body2" sx={{ opacity: 0.7 }}>
+              No credit card required. Start your 14-day free trial today.
+            </Typography>
+          </Box>
+        </Paper>
+      </Box>
+    </MainLayout>
+  );
+};
+
+export default LandingPage;
