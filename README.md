@@ -87,7 +87,7 @@ BizScout is an advanced web scraping solution that gathers comprehensive busines
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/yourusername/bizscout.git
+git clone https://github.com/totallyesteban/bizscout.git
 cd bizscout
 ```
 
