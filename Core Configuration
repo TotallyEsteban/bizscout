@@ -1,0 +1,147 @@
+import os
+import logging
+from typing import List, Dict, Any, Optional
+from pydantic import PostgresDsn, validator
+from pydantic_settings import BaseSettings
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+class Settings(BaseSettings):
+    """Application settings"""
+    
+    # Project info
+    PROJECT_NAME: str = "BizScout"
+    API_V1_STR: str = "/api/v1"
+    
+    # Environment
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+    DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
+    
+    # Database
+    POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
+    POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
+    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "postgres")
+    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "bizscout")
+    
+    # Database connection pool settings
+    DB_POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "5"))
+    DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "10"))
+    DB_POOL_RECYCLE: int = int(os.getenv("DB_POOL_RECYCLE", "3600"))  # Recycle connections after 1 hour
+    
+    # Constructed database URI
+    DATABASE_URI: Optional[PostgresDsn] = None
+    
+    @validator("DATABASE_URI", pre=True)
+    def assemble_db_uri(cls, v: Optional[str], values: Dict[str, Any]) -> Any:
+        if isinstance(v, str):
+            return v
+        return PostgresDsn.build(
+            scheme="postgresql",
+            user=values.get("POSTGRES_USER"),
+            password=values.get("POSTGRES_PASSWORD"),
+            host=values.get("POSTGRES_HOST"),
+            port=values.get("POSTGRES_PORT"),
+            path=f"/{values.get('POSTGRES_DB') or ''}",
+        )
+    
+    # API Keys
+    YELP_API_KEY: Optional[str] = os.getenv("YELP_API_KEY")
+    GOOGLE_PLACES_API_KEY: Optional[str] = os.getenv("GOOGLE_PLACES_API_KEY")
+    GOOGLE_MAPS_API_KEY: Optional[str] = os.getenv("GOOGLE_MAPS_API_KEY")
+    OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
+    
+    # CORS
+    CORS_ORIGINS: List[str] = [
+        "http://localhost",
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8000",
+    ]
+    
+    # Authentication
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-for-jwt-here")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+    
+    # Background tasks
+    ENABLE_SCHEDULER: bool = os.getenv("ENABLE_SCHEDULER", "True").lower() == "true"
+    MAX_SCRAPERS_PER_DOMAIN: int = int(os.getenv("MAX_SCRAPERS_PER_DOMAIN", "2"))
+    
+    # Proxy settings
+    USE_PROXY: bool = os.getenv("USE_PROXY", "False").lower() == "true"
+    PROXY_LIST: List[str] = []
+    
+    @validator("PROXY_LIST", pre=True)
+    def parse_proxy_list(cls, v: Any) -> List[str]:
+        if isinstance(v, str):
+            return [x.strip() for x in v.split(",") if x.strip()]
+        return v or []
+    
+    # Selenium settings
+    USE_SELENIUM: bool = os.getenv("USE_SELENIUM", "False").lower() == "true"
+    SELENIUM_HEADLESS: bool = os.getenv("SELENIUM_HEADLESS", "True").lower() == "true"
+    WEBDRIVER_PATH: Optional[str] = os.getenv("WEBDRIVER_PATH")
+    
+    # Redis settings (for Celery and caching)
+    REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
+    REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
+    REDIS_DB: int = int(os.getenv("REDIS_DB", "0"))
+    REDIS_PASSWORD: Optional[str] = os.getenv("REDIS_PASSWORD")
+    
+    # Constructed Redis URI
+    REDIS_URI: str = ""
+    
+    @validator("REDIS_URI", pre=True)
+    def assemble_redis_uri(cls, v: str, values: Dict[str, Any]) -> str:
+        if isinstance(v, str) and v:
+            return v
+        
+        password_part = f":{values.get('REDIS_PASSWORD')}@" if values.get("REDIS_PASSWORD") else ""
+        return f"redis://{password_part}{values.get('REDIS_HOST')}:{values.get('REDIS_PORT')}/{values.get('REDIS_DB')}"
+    
+    # Celery settings
+    CELERY_BROKER_URL: str = ""
+    CELERY_RESULT_BACKEND: str = ""
+    
+    @validator("CELERY_BROKER_URL", "CELERY_RESULT_BACKEND", pre=True)
+    def assemble_celery_uri(cls, v: str, values: Dict[str, Any]) -> str:
+        if isinstance(v, str) and v:
+            return v
+        return values.get("REDIS_URI", "")
+    
+    # Logging
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    LOG_FILE: Optional[str] = os.getenv("LOG_FILE")
+    
+    # Sentry monitoring
+    SENTRY_DSN: Optional[str] = os.getenv("SENTRY_DSN")
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+
+
+# Initialize settings
+settings = Settings()
+
+# Initialize logging
+logging.basicConfig(
+    level=getattr(logging, settings.LOG_LEVEL),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler(settings.LOG_FILE) if settings.LOG_FILE else logging.NullHandler(),
+    ]
+)
+
+# Initialize Sentry if configured
+if settings.SENTRY_DSN:
+    import sentry_sdk
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        environment=settings.ENVIRONMENT,
+        traces_sample_rate=0.1,
+    )
