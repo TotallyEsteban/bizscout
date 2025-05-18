@@ -1,0 +1,22 @@
+<svg width="500" height="500" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Logo Container -->
+  <g transform="translate(50, 50)">
+    <!-- Logo Circle Background -->
+    <circle cx="200" cy="200" r="200" fill="white" stroke="#E2E8F0" stroke-width="4" />
+    
+    <!-- Magnifying Glass -->
+    <g transform="translate(60, 60)">
+      <circle cx="140" cy="140" r="100" stroke="#1D4ED8" stroke-width="24" fill="none" />
+      <line x1="216" y1="216" x2="280" y2="280" stroke="#1D4ED8" stroke-width="24" stroke-linecap="round" />
+    </g>
+    
+    <!-- Building Icon -->
+    <g transform="translate(260, 260)">
+      <circle cx="40" cy="40" r="40" fill="#F97316" />
+      <rect x="16" y="10" width="48" height="60" rx="4" ry="4" stroke="white" stroke-width="6" fill="none" />
+      <line x1="40" y1="20" x2="40" y2="21" stroke="white" stroke-width="6" stroke-linecap="round" />
+      <line x1="40" y1="36" x2="40" y2="37" stroke="white" stroke-width="6" stroke-linecap="round" />
+      <line x1="40" y1="52" x2="40" y2="53" stroke="white" stroke-width="6" stroke-linecap="round" />
+    </g>
+  </g>
+</svg>
