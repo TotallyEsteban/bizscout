@@ -1,0 +1,170 @@
+from sqlalchemy import Column, Integer, String, Float, Text, Boolean, ForeignKey, DateTime, JSON, Table
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from geoalchemy2 import Geography
+import uuid
+from datetime import datetime
+
+from app.db.base_class import Base
+
+# Association tables
+business_categories = Table(
+    'business_categories',
+    Base.metadata,
+    Column('business_id', String, ForeignKey('businesses.id')),
+    Column('category_id', Integer, ForeignKey('categories.id'))
+)
+
+business_sources = Table(
+    'business_sources',
+    Base.metadata,
+    Column('business_id', String, ForeignKey('businesses.id')),
+    Column('source_id', Integer, ForeignKey('data_sources.id')),
+    Column('external_id', String),
+    Column('last_scraped', DateTime, default=func.now())
+)
+
+class Business(Base):
+    """Main business entity model"""
+    __tablename__ = "businesses"
+
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    address = Column(String, nullable=False)
+    address_line2 = Column(String, nullable=True)
+    city = Column(String, nullable=False)
+    state = Column(String, nullable=False)
+    zip_code = Column(String, nullable=False, index=True)
+    phone = Column(String, nullable=True)
+    website = Column(String, nullable=True)
+    email = Column(String, nullable=True)
+    
+    # Location data
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    location = Column(Geography(geometry_type='POINT', srid=4326), nullable=True)
+    
+    # Hours and additional data
+    hours = Column(JSON, nullable=True)  # Store as JSON: {"monday": "9am-5pm", ...}
+    social_links = Column(JSON, nullable=True)  # Store as JSON: {"facebook": "url", ...}
+    images = Column(JSON, nullable=True)  # Store as JSON array: ["url1", "url2"]
+    
+    # Metadata
+    is_active = Column(Boolean, default=True)
+    is_verified = Column(Boolean, default=False)
+    first_seen = Column(DateTime, default=func.now())
+    last_updated = Column(DateTime, default=func.now(), onupdate=func.now())
+    last_verified = Column(DateTime, nullable=True)
+    
+    # Relationships
+    categories = relationship("Category", secondary=business_categories, back_populates="businesses")
+    sources = relationship("DataSource", secondary=business_sources, back_populates="businesses")
+    reviews = relationship("Review", back_populates="business")
+    offers = relationship("Offer", back_populates="business")
+
+class Category(Base):
+    """Business category classification"""
+    __tablename__ = "categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False, unique=True, index=True)
+    parent_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
+    
+    # Relationships
+    children = relationship("Category", backref="parent", remote_side=[id])
+    businesses = relationship("Business", secondary=business_categories, back_populates="categories")
+
+class DataSource(Base):
+    """Data source tracking"""
+    __tablename__ = "data_sources"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False, unique=True)  # e.g., "yelp", "google_places"
+    
+    # Relationships
+    businesses = relationship("Business", secondary=business_sources, back_populates="sources")
+
+class Review(Base):
+    """Business reviews from various sources"""
+    __tablename__ = "reviews"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    business_id = Column(String, ForeignKey("businesses.id"), nullable=False)
+    source_id = Column(Integer, ForeignKey("data_sources.id"), nullable=False)
+    rating = Column(Float, nullable=False)
+    text = Column(Text, nullable=True)
+    author = Column(String, nullable=True)
+    date = Column(DateTime, nullable=True)
+    
+    # Sentiment analysis results
+    sentiment_score = Column(Float, nullable=True)
+    
+    # Relationships
+    business = relationship("Business", back_populates="reviews")
+    source = relationship("DataSource")
+
+class Offer(Base):
+    """Business offers or promotions"""
+    __tablename__ = "offers"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    business_id = Column(String, ForeignKey("businesses.id"), nullable=False)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    start_date = Column(DateTime, nullable=True)
+    end_date = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, default=True)
+    
+    # Relationships
+    business = relationship("Business", back_populates="offers")
+
+class ScrapingJob(Base):
+    """Tracks scraping job execution"""
+    __tablename__ = "scraping_jobs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    city = Column(String, nullable=False)
+    state = Column(String, nullable=False)
+    zip_codes = Column(JSON, nullable=True)  # List of ZIP codes to scrape
+    categories = Column(JSON, nullable=True)  # List of category IDs to scrape
+    source_ids = Column(JSON, nullable=True)  # List of source IDs to use
+    
+    # Job metadata
+    created_at = Column(DateTime, default=func.now())
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    status = Column(String, default="pending")  # pending, running, completed, failed
+    
+    # Results
+    businesses_found = Column(Integer, default=0)
+    businesses_created = Column(Integer, default=0)
+    businesses_updated = Column(Integer, default=0)
+    error_log = Column(JSON, nullable=True)
+
+# Create triggers for location calculation
+# Requires PostGIS extension to be enabled
+def create_postgis_triggers():
+    """
+    Creates PostgreSQL triggers to update the geographic point
+    whenever lat/lon are updated
+    """
+    trigger_sql = """
+    CREATE OR REPLACE FUNCTION update_business_location()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        IF NEW.latitude IS NOT NULL AND NEW.longitude IS NOT NULL THEN
+            NEW.location = ST_SetSRID(ST_MakePoint(NEW.longitude, NEW.latitude), 4326)::geography;
+        END IF;
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    DROP TRIGGER IF EXISTS update_business_location_trigger ON businesses;
+    
+    CREATE TRIGGER update_business_location_trigger
+    BEFORE INSERT OR UPDATE OF latitude, longitude ON businesses
+    FOR EACH ROW
+    EXECUTE FUNCTION update_business_location();
+    """
+    return trigger_sql
