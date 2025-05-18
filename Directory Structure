@@ -1,0 +1,41 @@
+bizscout/
+├── backend/                  # FastAPI backend
+│   ├── app/
+│   │   ├── api/              # API endpoints
+│   │   ├── core/             # Core settings
+│   │   ├── db/               # Database models
+│   │   ├── scrapers/         # Web scraping modules
+│   │   └── services/         # Business logic
+│   ├── tests/                # Backend tests
+│   ├── Dockerfile            # Backend Docker config
+│   ├── requirements.txt      # Python dependencies 
+│   ├── .env.example          # Environment variables template
+│   └── main.py               # Application entry point
+├── frontend/                 # React/Next.js frontend
+│   ├── components/           # UI components
+│   ├── pages/                # App pages
+│   ├── public/               # Static assets
+│   ├── styles/               # CSS styles
+│   ├── tests/                # Frontend tests
+│   ├── Dockerfile            # Frontend Docker config
+│   └── package.json          # Node dependencies
+├── db/                       # Database scripts
+│   ├── migrations/           # Database migrations
+│   ├── init.sql              # Schema setup
+│   └── seed.sql              # Sample data
+├── docs/                     # Documentation
+│   ├── api/                  # API documentation
+│   ├── architecture/         # Architecture diagrams
+│   ├── setup/                # Setup guides
+│   └── user-guide/           # User documentation
+├── docker/                   # Docker configurations
+│   ├── docker-compose.yml    # Full stack docker setup
+│   └── .env.example          # Docker environment template
+├── scripts/                  # Utility scripts
+│   ├── setup.sh              # Setup script
+│   └── deploy.sh             # Deployment script
+└── .github/                  # GitHub specific files
+    ├── workflows/            # GitHub Actions
+    │   └── ci.yml            # CI/CD pipeline
+    ├── ISSUE_TEMPLATE/       # Issue templates
+    └── PULL_REQUEST_TEMPLATE.md # PR template
